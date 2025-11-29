@@ -87,10 +87,9 @@ Now when you run:
     ./aoc2025 1
 
 the program will:
-	1.	Attempt to download
-https://adventofcode.com/2025/day/1/input
-	2.	Save it to
+1.	Attempt to download https://adventofcode.com/2025/day/1/input
+2.	Save it to
 `input/day01.txt`
-	3.	Use the downloaded input for solving
+3.	Use the downloaded input for solving
 
 If downloading fails, it falls back to reading the file from disk.
