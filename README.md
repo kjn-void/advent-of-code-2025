@@ -93,3 +93,16 @@ the program will:
 3.	Use the downloaded input for solving
 
 If downloading fails, it falls back to reading the file from disk.
+
+## Benchmarks
+
+First solve all days so input is stored locally, then run like ths
+
+    cd days
+    go test -bench=.
+
+### Benchmark Summary — Apple M4 (darwin/arm64)
+
+| Day | SetInput (µs) | SolvePart1 (µs) | SolvePart2 (µs) | FullPipeline (µs) |
+| --- | ------------- | --------------- | --------------- | ----------------- |
+| 01  | 71            | 12              | 390             | 470               |
