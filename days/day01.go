@@ -63,23 +63,21 @@ func (d *Day01) SolvePart2() string {
 	countZero := 0
 
 	for _, delta := range d.moves {
-		if delta > 0 {
-			// Right: pos -> pos + delta
-			for i := 1; i <= delta; i++ {
-				if mod100(pos+i) == 0 {
-					countZero++
-				}
-			}
-		} else if delta < 0 {
-			// Left: pos -> pos + delta (delta is negative)
-			step := -delta
-			for i := 1; i <= step; i++ {
-				if mod100(pos-i) == 0 {
-					countZero++
-				}
+		if delta == 0 {
+			continue
+		}
+
+		step := 1
+		if delta < 0 {
+			step = -1
+		}
+
+		for moved := 0; moved != delta; moved += step {
+			pos = mod100(pos + step)
+			if pos == 0 {
+				countZero++
 			}
 		}
-		pos = mod100(pos + delta)
 	}
 
 	return strconv.Itoa(countZero)
