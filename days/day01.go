@@ -63,17 +63,18 @@ func (d *Day01) SolvePart2() string {
 	countZero := 0
 
 	for _, delta := range d.moves {
-		if delta == 0 {
-			continue
-		}
-
 		step := 1
 		if delta < 0 {
 			step = -1
 		}
 
 		for moved := 0; moved != delta; moved += step {
-			pos = mod100(pos + step)
+			pos = pos + step
+			if pos < 0 {
+				pos = pos + 100
+			} else if pos >= 100 {
+				pos = pos - 100
+			}
 			if pos == 0 {
 				countZero++
 			}
