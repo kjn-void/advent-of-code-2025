@@ -105,4 +105,4 @@ First solve all days so input is stored locally, then run like ths
 
 | Day | SetInput (µs) | SolvePart1 (µs) | SolvePart2 (µs) | FullPipeline (µs) |
 | --- | ------------- | --------------- | --------------- | ----------------- |
-| 01  | 71            | 12              | 390             | 470               |
+| 01  | 71            | 12              | 170             | 180               |
