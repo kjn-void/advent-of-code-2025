@@ -1,0 +1,25 @@
+# macOS filesystem junk
+.DS_Store
+
+# Go build output
+aoc2025
+aoc2025.exe
+*.exe
+*.out
+
+# Go module cache (local only)
+bin/
+pkg/
+
+# Advent of Code input files (automatically downloaded)
+input/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Tests cache
+*.test
