@@ -28,7 +28,7 @@ var exampleDay01 = []string{
 // Unit tests
 // ------------------------
 
-func TestDay01Part1Example(t *testing.T) {
+func TestDay01Part1(t *testing.T) {
 	s := &Day01{}
 	s.SetInput(exampleDay01)
 
@@ -40,7 +40,7 @@ func TestDay01Part1Example(t *testing.T) {
 	}
 }
 
-func TestDay01Part2Example(t *testing.T) {
+func TestDay01Part2(t *testing.T) {
 	s := &Day01{}
 	s.SetInput(exampleDay01)
 
