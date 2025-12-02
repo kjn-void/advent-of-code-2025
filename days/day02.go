@@ -6,7 +6,7 @@ import (
 )
 
 type Day02 struct {
-	ranges [][2]int64 // inclusive ranges
+	ranges [][2]int64 // list of [Low, High] ranges, inclusive
 }
 
 func init() {
@@ -27,7 +27,6 @@ func (d *Day02) SetInput(lines []string) {
 		}
 		b := strings.Split(part, "-")
 
-		// AoC input is always well-formed
 		start, _ := strconv.ParseInt(b[0], 10, 64)
 		end, _ := strconv.ParseInt(b[1], 10, 64)
 
@@ -35,40 +34,59 @@ func (d *Day02) SetInput(lines []string) {
 	}
 }
 
-func pow10(n int) int64 {
-	v := int64(1)
-	for range n {
-		v *= 10
+func pow10Table() []int64 {
+	t := make([]int64, 20)
+	x := int64(1)
+	for i := 0; i < 20; i++ {
+		t[i] = x
+		x *= 10
 	}
-	return v
+	return t
 }
 
-// Part 1: sequence repeated exactly twice
+var p10 = pow10Table()
+
+// smallest repeating block size of numeric string s
+func smallestBlock(s string) int {
+	n := len(s)
+	for k := 1; k <= n/2; k++ {
+		if n%k != 0 {
+			continue
+		}
+		block := s[:k]
+		ok := true
+		for i := k; i < n; i += k {
+			if s[i:i+k] != block {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return k
+		}
+	}
+	return n
+}
+
+// ----- Part 1 -----
+
 func (d *Day02) SolvePart1() string {
-	var sum int64 = 0
+	sum := int64(0)
 
-	// For each range, sequential approach
 	for _, r := range d.ranges {
-		L := r[0]
-		R := r[1]
-
-		// Max digits of any possible number in this range
+		L, R := r[0], r[1]
 		maxDigits := len(strconv.FormatInt(R, 10))
 
-		// For each possible half-length k: total length = 2k (must be even)
 		for k := 1; 2*k <= maxDigits; k++ {
-			base := pow10(k)
-			repeatFactor := base + 1 // N = d*(10^k+1)
+			base := p10[k]
+			repFactor := base + 1
 
-			// Valid d range: [10^(k-1), 10^k - 1]
-			dLo := pow10(k - 1)
+			dLo := p10[k-1]
 			dHi := base - 1
 
-			// L <= d*repeatFactor <= R
-			candMin := (L + repeatFactor - 1) / repeatFactor // ceil(L / repeatFactor)
-			candMax := R / repeatFactor                      // floor(R / repeatFactor)
+			candMin := (L + repFactor - 1) / repFactor
+			candMax := R / repFactor
 
-			// Intersect with valid d bounds
 			if candMin < dLo {
 				candMin = dLo
 			}
@@ -79,10 +97,8 @@ func (d *Day02) SolvePart1() string {
 				continue
 			}
 
-			// All d in [candMin..candMax] produce invalid IDs in this range
 			for dd := candMin; dd <= candMax; dd++ {
-				N := dd * repeatFactor
-				sum += N
+				sum += dd * repFactor
 			}
 		}
 	}
@@ -90,43 +106,34 @@ func (d *Day02) SolvePart1() string {
 	return strconv.FormatInt(sum, 10)
 }
 
-// Part 2: sequence repeated at least twice (2, 3, 4, ... times)
+// ----- Part 2 -----
+
 func (d *Day02) SolvePart2() string {
-	var sum int64 = 0
-	seen := make(map[int64]struct{})
+	total := int64(0)
 
 	for _, r := range d.ranges {
-		L := r[0]
-		R := r[1]
-
+		L, R := r[0], r[1]
 		maxDigits := len(strconv.FormatInt(R, 10))
 
-		// Total digit length of N
-		for lenDigits := 2; lenDigits <= maxDigits; lenDigits++ {
-			tenLen := pow10(lenDigits) // 10^lenDigits
+		for totalDigits := 2; totalDigits <= maxDigits; totalDigits++ {
+			tenLen := p10[totalDigits]
 
-			// m = number of repetitions, must divide lenDigits, and m >= 2
-			for m := 2; m <= lenDigits; m++ {
-				if lenDigits%m != 0 {
+			for m := 2; m <= totalDigits; m++ {
+				if totalDigits%m != 0 {
 					continue
 				}
 
-				k := lenDigits / m // digit length of the repeating block
+				k := totalDigits / m
 
-				baseK := pow10(k)
-				// geometric series: 1 + 10^k + ... + 10^{(m-1)k}
-				// = (10^{lenDigits} - 1) / (10^k - 1)
+				baseK := p10[k]
 				repFactor := (tenLen - 1) / (baseK - 1)
 
-				// Valid d range: exactly k-digit numbers
-				dLo := pow10(k - 1)
+				dLo := p10[k-1]
 				dHi := baseK - 1
 
-				// From range: L <= d*repFactor <= R
-				candMin := (L + repFactor - 1) / repFactor // ceil(L / repFactor)
-				candMax := R / repFactor                   // floor(R / repFactor)
+				candMin := (L + repFactor - 1) / repFactor
+				candMax := R / repFactor
 
-				// Intersect with valid d bounds
 				if candMin < dLo {
 					candMin = dLo
 				}
@@ -138,19 +145,18 @@ func (d *Day02) SolvePart2() string {
 				}
 
 				for dd := candMin; dd <= candMax; dd++ {
-					N := dd * repFactor
+					ds := strconv.FormatInt(dd, 10)
 
-					// Avoid double-counting numbers that can be represented
-					// with multiple (k, m) combinations.
-					if _, ok := seen[N]; ok {
+					// uniqueness: dd must not have internal repetition
+					if smallestBlock(ds) != len(ds) {
 						continue
 					}
-					seen[N] = struct{}{}
-					sum += N
+
+					total += dd * repFactor
 				}
 			}
 		}
 	}
 
-	return strconv.FormatInt(sum, 10)
+	return strconv.FormatInt(total, 10)
 }
