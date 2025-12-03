@@ -2,7 +2,6 @@ package days
 
 import (
 	"strconv"
-	"strings"
 )
 
 type Day03 struct {
@@ -17,13 +16,8 @@ func (d *Day03) SetInput(lines []string) {
 	d.banks = d.banks[:0]
 
 	for _, line := range lines {
-		s := strings.TrimSpace(line)
-		if s == "" {
-			continue
-		}
-
-		digits := make([]int, len(s))
-		for i, ch := range s {
+		digits := make([]int, len(line))
+		for i, ch := range line {
 			digits[i] = int(ch - '0') // 1–9
 		}
 
@@ -36,28 +30,7 @@ func (d *Day03) SetInput(lines []string) {
 // -------------------------
 
 func (d *Day03) SolvePart1() string {
-	total := 0
-
-	for _, bank := range d.banks {
-		maxPrev := -1
-		best := 0
-
-		for _, digit := range bank {
-			if maxPrev != -1 {
-				val := maxPrev*10 + digit
-				if val > best {
-					best = val
-				}
-			}
-			if digit > maxPrev {
-				maxPrev = digit
-			}
-		}
-
-		total += best
-	}
-
-	return strconv.Itoa(total)
+	return d.maxJoltage(2)
 }
 
 // -------------------------
@@ -65,13 +38,15 @@ func (d *Day03) SolvePart1() string {
 // -------------------------
 
 func (d *Day03) SolvePart2() string {
+	return d.maxJoltage(12)
+}
+
+func (d *Day03) maxJoltage(pick int) string {
 	total := int64(0)
-	const pick = 12
 
 	for _, bank := range d.banks {
 		n := len(bank)
 
-		// Monotonic stack for lexicographically max subsequence of length 12
 		need := pick
 		stack := make([]int, 0, pick)
 
