@@ -39,10 +39,6 @@ func (d *Day03) SolvePart1() string {
 	total := 0
 
 	for _, bank := range d.banks {
-		if len(bank) < 2 {
-			continue
-		}
-
 		maxPrev := -1
 		best := 0
 
@@ -74,9 +70,6 @@ func (d *Day03) SolvePart2() string {
 
 	for _, bank := range d.banks {
 		n := len(bank)
-		if n < pick {
-			continue
-		}
 
 		// Monotonic stack for lexicographically max subsequence of length 12
 		need := pick
@@ -100,13 +93,16 @@ func (d *Day03) SolvePart2() string {
 			}
 		}
 
-		// Convert to number
-		var val int64 = 0
-		for _, dgt := range stack {
-			val = val*10 + int64(dgt)
-		}
-		total += val
+		total += stackToNumber(stack)
 	}
 
 	return strconv.FormatInt(total, 10)
+}
+
+func stackToNumber(stack []int) int64 {
+	var val int64 = 0
+	for _, dgt := range stack {
+		val = val*10 + int64(dgt)
+	}
+	return val
 }
