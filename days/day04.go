@@ -2,7 +2,6 @@ package days
 
 import (
 	"strconv"
-	"strings"
 )
 
 type Day04 struct {
@@ -19,19 +18,11 @@ func (d *Day04) SetInput(lines []string) {
 	d.grid = d.grid[:0]
 
 	for _, line := range lines {
-		s := strings.TrimSpace(line)
-		if s == "" {
-			continue
-		}
-		d.grid = append(d.grid, s)
+		d.grid = append(d.grid, line)
 	}
 
 	d.rows = len(d.grid)
-	if d.rows > 0 {
-		d.cols = len(d.grid[0])
-	} else {
-		d.cols = 0
-	}
+	d.cols = len(d.grid[0])
 }
 
 // -----------------------------------------------------------------------------
