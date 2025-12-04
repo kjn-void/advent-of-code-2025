@@ -108,3 +108,4 @@ First solve all days so input is stored locally, then run like ths
 | 01  | 71            | 12              | 417             | 499               |
 | 02  | 6             | <1              | 8               | 15                |
 | 03  | 32            | 11              | 40              | 79                |
+| 04  | 9             | 119             | 268             | 520               |
