@@ -42,10 +42,6 @@ func (d *Day05) SetInput(lines []string) {
 	}
 
 	// Merge overlapping ranges for efficient lookup
-	if len(d.ranges) == 0 {
-		return
-	}
-
 	sort.Slice(d.ranges, func(i, j int) bool {
 		return d.ranges[i][0] < d.ranges[j][0]
 	})
@@ -69,10 +65,6 @@ func (d *Day05) SetInput(lines []string) {
 }
 
 func (d *Day05) SolvePart1() string {
-	if len(d.ranges) == 0 || len(d.ids) == 0 {
-		return "0"
-	}
-
 	count := 0
 	for _, id := range d.ids {
 		if d.isFresh(id) {
@@ -100,10 +92,6 @@ func (d *Day05) isFresh(id int64) bool {
 }
 
 func (d *Day05) SolvePart2() string {
-	if len(d.ranges) == 0 {
-		return "0"
-	}
-
 	var total int64 = 0
 	for _, r := range d.ranges {
 		// r[0]..r[1] inclusive
