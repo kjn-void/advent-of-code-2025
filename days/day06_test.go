@@ -14,7 +14,7 @@ var day06ExampleInput = []string{
 	"*   +   *   +  ",
 }
 
-func TestDay06Part1Example(t *testing.T) {
+func TestDay06Part1(t *testing.T) {
 	s := &Day06{}
 	s.SetInput(day06ExampleInput)
 
@@ -26,7 +26,7 @@ func TestDay06Part1Example(t *testing.T) {
 	}
 }
 
-func TestDay06Part2Example(t *testing.T) {
+func TestDay06Part2(t *testing.T) {
 	s := &Day06{}
 	s.SetInput(day06ExampleInput)
 
