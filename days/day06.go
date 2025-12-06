@@ -18,14 +18,10 @@ func (d *Day06) SetInput(lines []string) {
 	d.grid = d.grid[:0]
 
 	for _, line := range lines {
-		s := strings.TrimRight(line, "\n")
-		if len(strings.TrimSpace(s)) == 0 {
-			continue
-		}
-		d.grid = append(d.grid, s)
+		d.grid = append(d.grid, line)
 	}
 
-	// Normalize row widths so all rows have identical length
+	// Normalize row widths so all rows have identical length.
 	maxC := 0
 	for _, row := range d.grid {
 		if len(row) > maxC {
@@ -44,12 +40,18 @@ func (d *Day06) SetInput(lines []string) {
 }
 
 // -----------------------------------------------------------
-// Part 1 (unchanged)
+// Helpers
 // -----------------------------------------------------------
 
-func (d *Day06) SolvePart1() string {
-	// Identify blank columns
+type day06Block struct {
+	start, end int
+}
+
+// findBlocks finds contiguous column ranges containing non-space characters,
+// separated by fully blank columns.
+func (d *Day06) findBlocks() []day06Block {
 	isBlank := make([]bool, d.C)
+
 	for c := 0; c < d.C; c++ {
 		allSpace := true
 		for r := 0; r < d.R; r++ {
@@ -61,9 +63,7 @@ func (d *Day06) SolvePart1() string {
 		isBlank[c] = allSpace
 	}
 
-	// Identify problem-blocks
-	type block struct{ start, end int }
-	blocks := make([]block, 0, 64)
+	blocks := make([]day06Block, 0, 64)
 	inBlock := false
 	start := 0
 
@@ -76,148 +76,113 @@ func (d *Day06) SolvePart1() string {
 		} else {
 			if inBlock {
 				inBlock = false
-				blocks = append(blocks, block{start, c - 1})
+				blocks = append(blocks, day06Block{start, c - 1})
 			}
 		}
 	}
 	if inBlock {
-		blocks = append(blocks, block{start, d.C - 1})
+		blocks = append(blocks, day06Block{start, d.C - 1})
 	}
 
-	// Evaluate blocks (Part 1 logic)
-	var total int64 = 0
+	return blocks
+}
+
+// getOperator reads the operator ('+' or '*') from the bottom row within a block.
+func (d *Day06) getOperator(b day06Block) byte {
+	opRow := d.grid[d.R-1][b.start : b.end+1]
+	for i := range opRow {
+		if opRow[i] == '+' || opRow[i] == '*' {
+			return opRow[i]
+		}
+	}
+	return '*' // fallback (AoC guarantees this won't happen)
+}
+
+// -----------------------------------------------------------
+// Number extractors
+// -----------------------------------------------------------
+
+// Part 1: Each row forms a number (vertical block)
+func (d *Day06) extractNumbersPart1(b day06Block) []int64 {
+	nums := make([]int64, 0, d.R)
+
+	for r := 0; r < d.R-1; r++ { // last row is operator
+		s := strings.TrimSpace(d.grid[r][b.start : b.end+1])
+		v, _ := strconv.ParseInt(s, 10, 64)
+		nums = append(nums, v)
+	}
+	return nums
+}
+
+// Part 2: Each column forms a number (cephalopod rules)
+func (d *Day06) extractNumbersPart2(b day06Block) []int64 {
+	width := b.end - b.start + 1
+	nums := make([]int64, 0, width)
+
+	for c := b.start; c <= b.end; c++ {
+		var sb strings.Builder
+		sb.Grow(d.R)
+
+		for r := 0; r < d.R-1; r++ { // last row is operator
+			ch := d.grid[r][c]
+			if ch != ' ' {
+				sb.WriteByte(ch)
+			}
+		}
+
+		v, _ := strconv.ParseInt(sb.String(), 10, 64)
+		nums = append(nums, v)
+	}
+	return nums
+}
+
+// -----------------------------------------------------------
+// Shared block evaluation
+// -----------------------------------------------------------
+
+func (d *Day06) evaluateBlocks(extractor func(day06Block) []int64) int64 {
+	blocks := d.findBlocks()
+	var total int64
 
 	for _, b := range blocks {
-		nums := make([]int64, 0, d.R)
-
-		// Collect rows 0..R-2 (numbers)
-		for r := 0; r < d.R-1; r++ {
-			sub := strings.TrimSpace(d.grid[r][b.start : b.end+1])
-			v, _ := strconv.ParseInt(sub, 10, 64)
-			nums = append(nums, v)
-		}
-
-		// Operator is in last row
-		opRow := d.grid[d.R-1][b.start : b.end+1]
-		op := byte('*')
-		for i := range opRow {
-			if opRow[i] == '+' || opRow[i] == '*' {
-				op = opRow[i]
-				break
-			}
-		}
-
-		if op == '+' {
-			s := int64(0)
-			for _, v := range nums {
-				s += v
-			}
-			total += s
-		} else {
-			p := int64(1)
-			for _, v := range nums {
-				p *= v
-			}
-			total += p
-		}
+		nums := extractor(b)
+		op := d.getOperator(b)
+		total += evalNumbers(nums, op)
 	}
 
+	return total
+}
+
+// evalNumbers computes either sum or product of nums depending on op ('+' or '*').
+func evalNumbers(nums []int64, op byte) int64 {
+	if op == '+' {
+		var sum int64
+		for _, n := range nums {
+			sum += n
+		}
+		return sum
+	}
+	prod := int64(1)
+	for _, n := range nums {
+		prod *= n
+	}
+	return prod
+}
+
+// -----------------------------------------------------------
+// Part 1
+// -----------------------------------------------------------
+
+func (d *Day06) SolvePart1() string {
+	total := d.evaluateBlocks(d.extractNumbersPart1)
 	return strconv.FormatInt(total, 10)
 }
 
 // -----------------------------------------------------------
-// Part 2 — CEPhalopod right-to-left column-wise numbers
+// Part 2
 // -----------------------------------------------------------
 
 func (d *Day06) SolvePart2() string {
-	// Identify blank columns
-	isBlank := make([]bool, d.C)
-	for c := 0; c < d.C; c++ {
-		allSpace := true
-		for r := 0; r < d.R; r++ {
-			if d.grid[r][c] != ' ' {
-				allSpace = false
-				break
-			}
-		}
-		isBlank[c] = allSpace
-	}
-
-	// Identify problem blocks again
-	type block struct{ start, end int }
-	blocks := make([]block, 0, 64)
-	inBlock := false
-	start := 0
-
-	for c := 0; c < d.C; c++ {
-		if !isBlank[c] {
-			if !inBlock {
-				inBlock = true
-				start = c
-			}
-		} else {
-			if inBlock {
-				inBlock = false
-				blocks = append(blocks, block{start, c - 1})
-			}
-		}
-	}
-	if inBlock {
-		blocks = append(blocks, block{start, d.C - 1})
-	}
-
-	var total int64 = 0
-
-	for _, b := range blocks {
-
-		// Operator is still in bottom row
-		opRow := d.grid[d.R-1][b.start : b.end+1]
-		op := byte('*')
-		for i := range opRow {
-			if opRow[i] == '+' || opRow[i] == '*' {
-				op = opRow[i]
-				break
-			}
-		}
-
-		// Extract numbers: each column is one number
-		// Read top-to-bottom rows 0..R-2
-		numbers := make([]int64, 0, b.end-b.start+1)
-
-		for c := b.start; c <= b.end; c++ {
-			builder := strings.Builder{}
-			builder.Grow(d.R)
-
-			for r := 0; r < d.R-1; r++ {
-				ch := d.grid[r][c]
-				if ch != ' ' {
-					builder.WriteByte(ch)
-				}
-			}
-
-			if builder.Len() == 0 {
-				continue
-			}
-
-			v, _ := strconv.ParseInt(builder.String(), 10, 64)
-			numbers = append(numbers, v)
-		}
-
-		// Evaluate right-to-left
-		if op == '+' {
-			s := int64(0)
-			for _, number := range numbers {
-				s += number
-			}
-			total += s
-		} else {
-			p := int64(1)
-			for _, number := range numbers {
-				p *= number
-			}
-			total += p
-		}
-	}
-
+	total := d.evaluateBlocks(d.extractNumbersPart2)
 	return strconv.FormatInt(total, 10)
 }
