@@ -6,9 +6,9 @@ import (
 )
 
 type Day07 struct {
-	grid   []string
-	R, C   int
-	sr, sc int // start row/column for S
+	grid []string
+	R, C int
+	sc   int // start column for S
 }
 
 func init() {
@@ -24,12 +24,7 @@ func (d *Day07) SetInput(lines []string) {
 	}
 
 	// Normalize width so all rows have same length
-	maxC := 0
-	for _, row := range d.grid {
-		if len(row) > maxC {
-			maxC = len(row)
-		}
-	}
+	maxC := len(d.grid[0])
 	for i := range d.grid {
 		if len(d.grid[i]) < maxC {
 			d.grid[i] += strings.Repeat(" ", maxC-len(d.grid[i]))
@@ -39,13 +34,11 @@ func (d *Day07) SetInput(lines []string) {
 	d.R = len(d.grid)
 	d.C = maxC
 
-	// Locate S exactly once
-	for r := 0; r < d.R; r++ {
-		for c := 0; c < d.C; c++ {
-			if d.grid[r][c] == 'S' {
-				d.sr, d.sc = r, c
-				return
-			}
+	// Locate S on first row
+	for c := 0; c < d.C; c++ {
+		if d.grid[0][c] == 'S' {
+			d.sc = c
+			return
 		}
 	}
 }
@@ -55,13 +48,23 @@ func (d *Day07) SetInput(lines []string) {
 // -----------------------------------------------------------
 
 func (d *Day07) SolvePart1() string {
-	active := make([]bool, d.C)
+	// Double buffer: two rows of bools we alternate between
+	bufA := make([]bool, d.C)
+	bufB := make([]bool, d.C)
+
+	active := bufA
+	next := bufB
+
 	active[d.sc] = true
 	splitCount := 0
 
-	for r := d.sr + 1; r < d.R; r++ {
+	for r := 1; r < d.R; r++ {
 		row := d.grid[r]
-		next := make([]bool, d.C)
+
+		// Clear next buffer
+		for i := range next {
+			next[i] = false
+		}
 
 		for c, hasBeam := range active {
 			if !hasBeam {
@@ -71,19 +74,16 @@ func (d *Day07) SolvePart1() string {
 			if row[c] == '^' {
 				// Splitter: original beam ends, two new beams start
 				splitCount++
-				if c > 0 {
-					next[c-1] = true
-				}
-				if c+1 < d.C {
-					next[c+1] = true
-				}
+				next[c-1] = true
+				next[c+1] = true
 			} else {
 				// Otherwise beam continues straight
 				next[c] = true
 			}
 		}
 
-		active = next
+		// Swap buffers
+		active, next = next, active
 	}
 
 	return strconv.Itoa(splitCount)
@@ -94,13 +94,22 @@ func (d *Day07) SolvePart1() string {
 // -----------------------------------------------------------
 
 func (d *Day07) SolvePart2() string {
-	// timelines[c] = how many timelines have reached column c
-	timelines := make([]int64, d.C)
+	// Double buffer: two rows of int64 we alternate between
+	bufA := make([]int64, d.C)
+	bufB := make([]int64, d.C)
+
+	timelines := bufA
+	next := bufB
+
 	timelines[d.sc] = 1
 
-	for r := d.sr + 1; r < d.R; r++ {
+	for r := 1; r < d.R; r++ {
 		row := d.grid[r]
-		next := make([]int64, d.C)
+
+		// Clear next buffer
+		for i := range next {
+			next[i] = 0
+		}
 
 		for c, count := range timelines {
 			if count == 0 {
@@ -109,24 +118,21 @@ func (d *Day07) SolvePart2() string {
 
 			if row[c] == '^' {
 				// Split to left and right
-				if c > 0 {
-					next[c-1] += count
-				}
-				if c+1 < d.C {
-					next[c+1] += count
-				}
+				next[c-1] += count
+				next[c+1] += count
 			} else {
 				// Continue straight down
 				next[c] += count
 			}
 		}
 
-		timelines = next
+		// Swap buffers
+		timelines, next = next, timelines
 	}
 
 	var total int64
-	for _, t := range timelines {
-		total += t
+	for _, count := range timelines {
+		total += count
 	}
 
 	return strconv.FormatInt(total, 10)
