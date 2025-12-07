@@ -94,7 +94,7 @@ the program will:
 
 If downloading fails, it falls back to reading the file from disk.
 
-## Benchmarks
+## ⏱️ Benchmarks
 
 First solve all days so input is stored locally, then run like ths
 
