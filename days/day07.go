@@ -8,7 +8,7 @@ import (
 type Day07 struct {
 	grid   []string
 	R, C   int
-	sr, sc int // start row / column
+	sr, sc int // start row/column for S
 }
 
 func init() {
@@ -18,12 +18,12 @@ func init() {
 func (d *Day07) SetInput(lines []string) {
 	d.grid = d.grid[:0]
 
+	// Keep layout exactly; AoC never gives malformed lines
 	for _, line := range lines {
-		// Keep layout exactly as in the input
 		d.grid = append(d.grid, line)
 	}
 
-	// Normalize row widths to avoid out-of-bounds on ragged lines
+	// Normalize width so all rows have same length
 	maxC := 0
 	for _, row := range d.grid {
 		if len(row) > maxC {
@@ -39,7 +39,7 @@ func (d *Day07) SetInput(lines []string) {
 	d.R = len(d.grid)
 	d.C = maxC
 
-	// Locate the start 'S'
+	// Locate S exactly once
 	for r := 0; r < d.R; r++ {
 		for c := 0; c < d.C; c++ {
 			if d.grid[r][c] == 'S' {
@@ -51,88 +51,72 @@ func (d *Day07) SetInput(lines []string) {
 }
 
 // -----------------------------------------------------------
-// Part 1 — count total number of splits
+// Part 1 — Linear beam simulation counting split events
 // -----------------------------------------------------------
 
 func (d *Day07) SolvePart1() string {
 	active := make([]bool, d.C)
 	active[d.sc] = true
-
 	splitCount := 0
 
 	for r := d.sr + 1; r < d.R; r++ {
-		nextActive := make([]bool, d.C)
+		row := d.grid[r]
+		next := make([]bool, d.C)
 
-		for c := 0; c < d.C; c++ {
-			if !active[c] {
+		for c, hasBeam := range active {
+			if !hasBeam {
 				continue
 			}
 
-			switch d.grid[r][c] {
-			case '.':
-				// Beam continues straight down
-				nextActive[c] = true
-
-			case '^':
-				// Splitter: beam splits; original path stops here
+			if row[c] == '^' {
+				// Splitter: original beam ends, two new beams start
 				splitCount++
-
-				// Left beam
 				if c > 0 {
-					nextActive[c-1] = true
+					next[c-1] = true
 				}
-				// Right beam
 				if c+1 < d.C {
-					nextActive[c+1] = true
+					next[c+1] = true
 				}
-
-			default:
-				// Treat any unexpected character as empty space
-				nextActive[c] = true
+			} else {
+				// Otherwise beam continues straight
+				next[c] = true
 			}
 		}
 
-		active = nextActive
+		active = next
 	}
 
 	return strconv.Itoa(splitCount)
 }
 
 // -----------------------------------------------------------
-// Part 2 — count number of distinct timelines
+// Part 2 — Count all timelines (many-worlds interpretation)
 // -----------------------------------------------------------
 
 func (d *Day07) SolvePart2() string {
-	// timelines[c] = number of timelines with the particle at column c
-	// just above row r (we will process row by row).
+	// timelines[c] = how many timelines have reached column c
 	timelines := make([]int64, d.C)
 	timelines[d.sc] = 1
 
 	for r := d.sr + 1; r < d.R; r++ {
+		row := d.grid[r]
 		next := make([]int64, d.C)
 
-		for c := 0; c < d.C; c++ {
-			count := timelines[c]
+		for c, count := range timelines {
 			if count == 0 {
 				continue
 			}
 
-			switch d.grid[r][c] {
-			case '.':
-				// All those timelines just move straight down.
-				next[c] += count
-
-			case '^':
-				// Splitter: each timeline forks into (at most) 2.
+			if row[c] == '^' {
+				// Split to left and right
 				if c > 0 {
 					next[c-1] += count
 				}
 				if c+1 < d.C {
 					next[c+1] += count
 				}
-
-			default:
-				// Any other cell acts like empty space.
+			} else {
+				// Continue straight down
 				next[c] += count
 			}
 		}
@@ -141,8 +125,8 @@ func (d *Day07) SolvePart2() string {
 	}
 
 	var total int64
-	for _, cnt := range timelines {
-		total += cnt
+	for _, t := range timelines {
+		total += t
 	}
 
 	return strconv.FormatInt(total, 10)
