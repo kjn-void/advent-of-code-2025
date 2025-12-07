@@ -6,9 +6,9 @@ import (
 )
 
 type Day07 struct {
-	grid []string
-	R, C int
-	sc   int // start column for S
+	grid       []string
+	Rows, Cols int
+	startCol   int // start column for S
 }
 
 func init() {
@@ -31,13 +31,13 @@ func (d *Day07) SetInput(lines []string) {
 		}
 	}
 
-	d.R = len(d.grid)
-	d.C = maxC
+	d.Rows = len(d.grid)
+	d.Cols = maxC
 
 	// Locate S on first row
-	for c := 0; c < d.C; c++ {
+	for c := 0; c < d.Cols; c++ {
 		if d.grid[0][c] == 'S' {
-			d.sc = c
+			d.startCol = c
 			return
 		}
 	}
@@ -49,22 +49,19 @@ func (d *Day07) SetInput(lines []string) {
 
 func (d *Day07) SolvePart1() string {
 	// Double buffer: two rows of bools we alternate between
-	bufA := make([]bool, d.C)
-	bufB := make([]bool, d.C)
+	bufA := make([]bool, d.Cols)
+	bufB := make([]bool, d.Cols)
 
 	active := bufA
 	next := bufB
 
-	active[d.sc] = true
+	active[d.startCol] = true
 	splitCount := 0
 
-	for r := 1; r < d.R; r++ {
+	for r := 1; r < d.Rows; r++ {
 		row := d.grid[r]
 
-		// Clear next buffer
-		for i := range next {
-			next[i] = false
-		}
+		clear(next)
 
 		for c, hasBeam := range active {
 			if !hasBeam {
@@ -95,21 +92,18 @@ func (d *Day07) SolvePart1() string {
 
 func (d *Day07) SolvePart2() string {
 	// Double buffer: two rows of int64 we alternate between
-	bufA := make([]int64, d.C)
-	bufB := make([]int64, d.C)
+	bufA := make([]int64, d.Cols)
+	bufB := make([]int64, d.Cols)
 
 	timelines := bufA
 	next := bufB
 
-	timelines[d.sc] = 1
+	timelines[d.startCol] = 1
 
-	for r := 1; r < d.R; r++ {
+	for r := 1; r < d.Rows; r++ {
 		row := d.grid[r]
 
-		// Clear next buffer
-		for i := range next {
-			next[i] = 0
-		}
+		clear(next)
 
 		for c, count := range timelines {
 			if count == 0 {
@@ -130,10 +124,10 @@ func (d *Day07) SolvePart2() string {
 		timelines, next = next, timelines
 	}
 
-	var total int64
+	var totalCount int64
 	for _, count := range timelines {
-		total += count
+		totalCount += count
 	}
 
-	return strconv.FormatInt(total, 10)
+	return strconv.FormatInt(totalCount, 10)
 }
