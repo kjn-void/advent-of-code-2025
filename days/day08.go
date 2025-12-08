@@ -8,10 +8,16 @@ import (
 
 type Day08 struct {
 	points []vec3
+	edges  []edge // all pairwise edges, sorted by distance ascending
 }
 
 type vec3 struct {
 	x, y, z int64
+}
+
+type edge struct {
+	dist2 int64
+	i, j  int
 }
 
 func init() {
@@ -24,7 +30,6 @@ func init() {
 
 func parseVec3(line string) vec3 {
 	parts := strings.Split(line, ",")
-	// AoC input always valid integers
 	x, _ := strconv.ParseInt(parts[0], 10, 64)
 	y, _ := strconv.ParseInt(parts[1], 10, 64)
 	z, _ := strconv.ParseInt(parts[2], 10, 64)
@@ -33,6 +38,7 @@ func parseVec3(line string) vec3 {
 
 func (d *Day08) SetInput(lines []string) {
 	d.points = d.points[:0]
+
 	for _, ln := range lines {
 		ln = strings.TrimSpace(ln)
 		if ln == "" {
@@ -40,16 +46,14 @@ func (d *Day08) SetInput(lines []string) {
 		}
 		d.points = append(d.points, parseVec3(ln))
 	}
+
+	// Build and sort all pairwise edges once; reuse in both parts.
+	d.edges = buildSortedEdges(d.points)
 }
 
 // -----------------------------------------------------------
 // Distance & Edge Preparation
 // -----------------------------------------------------------
-
-type edge struct {
-	dist2 int64 // squared distance
-	i, j  int   // indices of points
-}
 
 func squaredDist(a, b vec3) int64 {
 	dx := a.x - b.x
@@ -61,8 +65,11 @@ func squaredDist(a, b vec3) int64 {
 // Generate all edges sorted by ascending squared distance.
 func buildSortedEdges(points []vec3) []edge {
 	n := len(points)
-	edges := make([]edge, 0, n*(n-1)/2)
+	if n < 2 {
+		return nil
+	}
 
+	edges := make([]edge, 0, n*(n-1)/2)
 	for i := 0; i < n; i++ {
 		pi := points[i]
 		for j := i + 1; j < n; j++ {
@@ -83,7 +90,7 @@ func buildSortedEdges(points []vec3) []edge {
 }
 
 // -----------------------------------------------------------
-// DSU (Union-Find) with Component Sizes
+// DSU (Union-Find) with component sizes
 // -----------------------------------------------------------
 
 type dsu struct {
@@ -109,13 +116,13 @@ func (d *dsu) find(x int) int {
 	return x
 }
 
+// union returns true if it actually merged two different components.
 func (d *dsu) union(a, b int) bool {
 	ra := d.find(a)
 	rb := d.find(b)
 	if ra == rb {
 		return false
 	}
-	// union by size
 	if d.size[ra] < d.size[rb] {
 		ra, rb = rb, ra
 	}
@@ -125,40 +132,35 @@ func (d *dsu) union(a, b int) bool {
 }
 
 // -----------------------------------------------------------
-// Core Solver Logic (testable internal helpers)
+// Core solver helpers (internal, testable)
 // -----------------------------------------------------------
 
-// runConnections performs exactly k connection attempts
-// using the shortest k edges in the complete graph.
+// runConnections performs exactly k connection attempts using the
+// shortest k edges in the sorted edge list.
 // Returns component sizes sorted descending.
-func runConnections(points []vec3, k int) []int {
+func runConnections(points []vec3, edges []edge, k int) []int {
 	n := len(points)
 	if n == 0 {
 		return nil
 	}
-
-	edges := buildSortedEdges(points)
 	if k > len(edges) {
 		k = len(edges)
 	}
 
 	uf := newDSU(n)
 
-	// Process the first k edges
 	for idx := 0; idx < k; idx++ {
 		e := edges[idx]
-		// Try to union; if already connected, nothing happens
+		// If already in same component, nothing happens (but still counts as an attempt)
 		uf.union(e.i, e.j)
 	}
 
-	// Count component sizes
 	compMap := make(map[int]int)
 	for i := 0; i < n; i++ {
 		r := uf.find(i)
 		compMap[r] = uf.size[r]
 	}
 
-	// Extract sizes
 	sizes := make([]int, 0, len(compMap))
 	for _, sz := range compMap {
 		sizes = append(sizes, sz)
@@ -166,23 +168,20 @@ func runConnections(points []vec3, k int) []int {
 
 	// Sort descending
 	sort.Slice(sizes, func(a, b int) bool { return sizes[a] > sizes[b] })
-
 	return sizes
 }
 
 // runUntilSingleCircuit keeps connecting shortest edges until all
 // points are in a single connected component. It returns the indices
 // of the last pair that actually merged two different components.
-func runUntilSingleCircuit(points []vec3) (int, int) {
+func runUntilSingleCircuit(points []vec3, edges []edge) (int, int) {
 	n := len(points)
 	if n <= 1 {
 		return 0, 0
 	}
 
-	edges := buildSortedEdges(points)
 	uf := newDSU(n)
 	components := n
-
 	lastI, lastJ := 0, 0
 
 	for _, e := range edges {
@@ -199,11 +198,11 @@ func runUntilSingleCircuit(points []vec3) (int, int) {
 }
 
 // -----------------------------------------------------------
-// Solve Part 1 (k = 1000) and Part 2
+// Solve Part 1 & Part 2
 // -----------------------------------------------------------
 
 func (d *Day08) SolvePart1() string {
-	sizes := runConnections(d.points, 1000)
+	sizes := runConnections(d.points, d.edges, 1000)
 	if len(sizes) < 3 {
 		return "0"
 	}
@@ -215,11 +214,8 @@ func (d *Day08) SolvePart2() string {
 	if len(d.points) < 2 {
 		return "0"
 	}
-
-	i, j := runUntilSingleCircuit(d.points)
-	// Multiply X coordinates of the two junction boxes
+	i, j := runUntilSingleCircuit(d.points, d.edges)
 	xa := d.points[i].x
 	xb := d.points[j].x
-	product := xa * xb
-	return strconv.FormatInt(product, 10)
+	return strconv.FormatInt(xa*xb, 10)
 }

@@ -34,8 +34,8 @@ func TestDay08ExamplePart1(t *testing.T) {
 	d := &Day08{}
 	d.SetInput(exampleDay08)
 
-	// Example uses 10 shortest connections
-	sizes := runConnections(d.points, 10)
+	// Example uses 10 shortest connections, not 1000
+	sizes := runConnections(d.points, d.edges, 10)
 
 	if len(sizes) < 3 {
 		t.Fatalf("Expected at least 3 components, got %v", sizes)
@@ -53,7 +53,7 @@ func TestDay08ExamplePart2(t *testing.T) {
 	d := &Day08{}
 	d.SetInput(exampleDay08)
 
-	i, j := runUntilSingleCircuit(d.points)
+	i, j := runUntilSingleCircuit(d.points, d.edges)
 	xa := d.points[i].x
 	xb := d.points[j].x
 	got := xa * xb
