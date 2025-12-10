@@ -1,6 +1,8 @@
 package days
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -47,4 +49,64 @@ func splitLines(s string) []string {
 		out = append(out, line)
 	}
 	return out
+}
+
+// loadRealInputDay10 loads the actual AoC input from input/day09.txt
+func loadRealInputDay10(b *testing.B) []string {
+	path := filepath.Join("..", "input", "day10.txt")
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		b.Fatalf("Missing input file: %v", err)
+	}
+	raw := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	return raw
+}
+
+// day10_bench_test.go
+func BenchmarkDay10_SetInput(b *testing.B) {
+	lines := loadRealInputDay10(b)
+
+	var d Day10
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		d.SetInput(lines)
+	}
+}
+
+func BenchmarkDay10_SolvePart1(b *testing.B) {
+	lines := loadRealInputDay10(b)
+
+	var d Day10
+	d.SetInput(lines)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = d.SolvePart1()
+	}
+}
+
+func BenchmarkDay10_SolvePart2(b *testing.B) {
+	lines := loadRealInputDay10(b)
+
+	var d Day10
+	d.SetInput(lines)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = d.SolvePart2()
+	}
+}
+
+func BenchmarkDay10_FullPipeline(b *testing.B) {
+	lines := loadRealInputDay10(b)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var d Day10
+		d.SetInput(lines)
+		_ = d.SolvePart1()
+		_ = d.SolvePart2()
+	}
 }
