@@ -169,7 +169,7 @@ func solveSystem(data MachineData, isPart2 bool) (int, error) {
 func solveGF2(N, M int, A [][]float64, b []float64) (int, error) {
 	// Convert to int for easier bitwise ops
 	mat := make([][]int, N)
-	for i := 0; i < N; i++ {
+	for i := range N {
 		row := make([]int, M+1) // Augmented
 		for j := 0; j < M; j++ {
 			row[j] = int(A[i][j])
@@ -199,7 +199,7 @@ func solveGF2(N, M int, A [][]float64, b []float64) (int, error) {
 		pivotCols[col] = pivotRow
 
 		// Eliminate
-		for r := 0; r < N; r++ {
+		for r := range N {
 			if r != pivotRow && mat[r][col] == 1 {
 				for k := col; k <= M; k++ {
 					mat[r][k] ^= mat[pivotRow][k]
@@ -218,7 +218,7 @@ func solveGF2(N, M int, A [][]float64, b []float64) (int, error) {
 
 	// Identify free variables
 	var freeVars []int
-	for c := 0; c < M; c++ {
+	for c := range M {
 		if _, ok := pivotCols[c]; !ok {
 			freeVars = append(freeVars, c)
 		}
@@ -270,7 +270,7 @@ func solveGF2(N, M int, A [][]float64, b []float64) (int, error) {
 func solveReal(N, M int, A [][]float64, b []float64) (int, error) {
 	// Create Augmented Matrix
 	mat := make([][]float64, N)
-	for i := 0; i < N; i++ {
+	for i := range N {
 		row := make([]float64, M+1)
 		copy(row, A[i])
 		row[M] = b[i]
@@ -304,7 +304,7 @@ func solveReal(N, M int, A [][]float64, b []float64) (int, error) {
 		}
 
 		// Eliminate
-		for r := 0; r < N; r++ {
+		for r := range N {
 			if r != pivotRow {
 				factor := mat[r][col]
 				if math.Abs(factor) > 1e-9 {
@@ -326,7 +326,7 @@ func solveReal(N, M int, A [][]float64, b []float64) (int, error) {
 
 	// Identify Free Vars
 	var freeVars []int
-	for c := 0; c < M; c++ {
+	for c := range M {
 		if _, ok := pivotCols[c]; !ok {
 			freeVars = append(freeVars, c)
 		}
@@ -369,7 +369,7 @@ func solveReal(N, M int, A [][]float64, b []float64) (int, error) {
 			// are free variable columns to the right.
 
 			// Let's iterate all pivot columns.
-			for c := 0; c < M; c++ {
+			for c := range M {
 				if r, isPivot := pivotCols[c]; isPivot {
 					val := mat[r][M]
 					for k := c + 1; k < M; k++ {
