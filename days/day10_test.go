@@ -81,8 +81,7 @@ func BenchmarkDay10_SolvePart1(b *testing.B) {
 	var d Day10
 	d.SetInput(lines)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = d.SolvePart1()
 	}
 }
@@ -93,8 +92,7 @@ func BenchmarkDay10_SolvePart2(b *testing.B) {
 	var d Day10
 	d.SetInput(lines)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = d.SolvePart2()
 	}
 }
@@ -102,8 +100,7 @@ func BenchmarkDay10_SolvePart2(b *testing.B) {
 func BenchmarkDay10_FullPipeline(b *testing.B) {
 	lines := loadRealInputDay10(b)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var d Day10
 		d.SetInput(lines)
 		_ = d.SolvePart1()
