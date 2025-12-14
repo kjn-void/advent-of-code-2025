@@ -101,7 +101,6 @@ func (d *Day11) countPathsWithRequired(start, end string, need1, need2 string) i
 	}
 
 	memo := make(map[day11State]int64)
-	visiting := make(map[day11State]bool)
 
 	// initial mask (in case start is one of the required nodes)
 	mask := 0
@@ -116,10 +115,6 @@ func (d *Day11) countPathsWithRequired(start, end string, need1, need2 string) i
 	dfs = func(node string, mask int) int64 {
 		st := day11State{node: node, mask: mask}
 
-		// Cycle guard
-		if visiting[st] {
-			return 0
-		}
 		if v, ok := memo[st]; ok {
 			return v
 		}
@@ -132,7 +127,6 @@ func (d *Day11) countPathsWithRequired(start, end string, need1, need2 string) i
 			return 0
 		}
 
-		visiting[st] = true
 		var total int64
 
 		for _, nxt := range d.adj[node] {
@@ -146,7 +140,6 @@ func (d *Day11) countPathsWithRequired(start, end string, need1, need2 string) i
 			total += dfs(nxt, nextMask)
 		}
 
-		visiting[st] = false
 		memo[st] = total
 		return total
 	}
