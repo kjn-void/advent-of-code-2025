@@ -326,7 +326,7 @@ func solveJoltage10(m MachineData) (int, error) {
 			total := currentSum
 			valid := true
 
-			for c := 0; c < M; c++ {
+			for c := range M {
 				r, isPivot := pivotCols[c]
 				if !isPivot {
 					continue
@@ -400,15 +400,18 @@ func (d *Day10) SolvePart1() string {
 
 func (d *Day10) SolvePart2() string {
 	total := 0
+	resultCh := make(chan int)
 	for _, m := range d.Machines {
-		if len(m.TargetJoltage) == 0 {
-			continue
-		}
-		res, err := solveJoltage10(m)
-		if err != nil {
-			panic(fmt.Sprintf("Day10 Part2: %v", err))
-		}
-		total += res
+		go func(m MachineData) {
+			res, err := solveJoltage10(m)
+			if err != nil {
+				panic(fmt.Sprintf("Day10 Part2: %v", err))
+			}
+			resultCh <- res
+		}(m)
+	}
+	for range d.Machines {
+		total += <-resultCh
 	}
 	return strconv.Itoa(total)
 }

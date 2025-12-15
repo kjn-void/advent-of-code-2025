@@ -70,7 +70,7 @@ func buildSortedEdges(points []vec3) []edge {
 	}
 
 	edges := make([]edge, 0, n*(n-1)/2)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		pi := points[i]
 		for j := i + 1; j < n; j++ {
 			pj := points[j]
@@ -156,7 +156,7 @@ func runConnections(points []vec3, edges []edge, k int) []int {
 	}
 
 	compMap := make(map[int]int)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		r := uf.find(i)
 		compMap[r] = uf.size[r]
 	}
