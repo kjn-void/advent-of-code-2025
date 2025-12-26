@@ -6,8 +6,9 @@ import (
 )
 
 type Day09 struct {
-	reds  []pt9
-	edges []edge9
+	reds      []pt9
+	edges     []edge9
+	vertEdges []edge9 // cached vertical edges for fast inside test
 }
 
 type pt9 struct {
@@ -37,6 +38,7 @@ func (d *Day09) SetInput(lines []string) {
 		d.reds = append(d.reds, pt9{x, y})
 	}
 	d.edges = nil
+	d.vertEdges = nil
 }
 
 // ----------------------------------------------------------
@@ -82,7 +84,7 @@ func (d *Day09) SolvePart2() string {
 
 	best := 0
 
-	for i := range n {
+	for i := 0; i < n; i++ {
 		a := d.reds[i]
 		for j := i + 1; j < n; j++ {
 			b := d.reds[j]
@@ -113,9 +115,7 @@ func (d *Day09) SolvePart2() string {
 				continue
 			}
 
-			if area > best {
-				best = area
-			}
+			best = area
 		}
 	}
 
@@ -129,24 +129,34 @@ func (d *Day09) SolvePart2() string {
 func (d *Day09) buildEdges() {
 	n := len(d.reds)
 	edges := make([]edge9, 0, n)
-	for i := range n {
+	verts := make([]edge9, 0, n)
+
+	for i := 0; i < n; i++ {
 		a := d.reds[i]
 		b := d.reds[(i+1)%n]
 		e := edge9{x1: a.x, y1: a.y, x2: b.x, y2: b.y}
+
 		if a.y == b.y {
 			e.hor = true
 			if e.x1 > e.x2 {
 				e.x1, e.x2 = e.x2, e.x1
 			}
+			// y1 == y2 already
 		} else {
 			e.hor = false
+			// normalize to y1 < y2 for half-open tests
 			if e.y1 > e.y2 {
 				e.y1, e.y2 = e.y2, e.y1
 			}
+			// x1 == x2 already
+			verts = append(verts, e)
 		}
+
 		edges = append(edges, e)
 	}
+
 	d.edges = edges
+	d.vertEdges = verts
 }
 
 // ----------------------------------------------------------
@@ -154,46 +164,36 @@ func (d *Day09) buildEdges() {
 // ----------------------------------------------------------
 
 func (d *Day09) pointInsideOrOn(p pt9) bool {
-	// First, check if point lies exactly on any edge (boundary is allowed).
+	// Boundary check (allowed):
 	for _, e := range d.edges {
 		if e.hor {
 			if p.y == e.y1 && p.x >= e.x1 && p.x <= e.x2 {
 				return true
 			}
 		} else {
+			// vertical boundary
 			if p.x == e.x1 && p.y >= e.y1 && p.y <= e.y2 {
 				return true
 			}
 		}
 	}
-	// Standard ray-casting (odd-even) for inside test.
-	return pointInPolygonRayCast(p, d.reds)
+
+	// Strict interior test using integer-only vertical-edge crossing.
+	return d.pointInsideStrict(p)
 }
 
-func pointInPolygonRayCast(p pt9, poly []pt9) bool {
-	inside := false
-	n := len(poly)
-	if n < 3 {
-		return false
-	}
-
-	j := n - 1
-	for i := 0; i < n; i++ {
-		pi := poly[i]
-		pj := poly[j]
-
-		// Check if edge (pj -> pi) crosses a horizontal ray to the right of p.
-		if (pi.y > p.y) != (pj.y > p.y) {
-			// Compute intersection x coordinate of the edge with horizontal line y = p.y
-			// x_intersect = xj + (y - yj)*(xi - xj)/(yi - yj)
-			xIntersect := float64(pj.x) + float64(p.y-pj.y)*float64(pi.x-pj.x)/float64(pi.y-pj.y)
-			if float64(p.x) < xIntersect {
-				inside = !inside
-			}
+// Integer-only odd-even rule specialized for orthogonal polygons.
+// Count vertical edges strictly to the right of p that cross scanline y = p.y.
+// Use half-open interval [y1, y2) to avoid double counting at vertices.
+func (d *Day09) pointInsideStrict(p pt9) bool {
+	crossings := 0
+	for _, e := range d.vertEdges {
+		// vertical edge at x = e.x1, y in [e.y1, e.y2)
+		if e.x1 > p.x && e.y1 <= p.y && p.y < e.y2 {
+			crossings++
 		}
-		j = i
 	}
-	return inside
+	return (crossings & 1) == 1
 }
 
 // ----------------------------------------------------------
@@ -202,20 +202,9 @@ func pointInPolygonRayCast(p pt9, poly []pt9) bool {
 //
 // Rectangle is [x1,x2] × [y1,y2], inclusive corner tiles.
 // We treat the *interior* as (x1,x2) × (y1,y2) (open intervals).
-// Any polygon segment strictly crossing this interior means the
-// rectangle is not entirely inside the polygon.
-//
-// Horizontal segment at y0:
-//
-//	if y1 < y0 < y2 and (x-range ∩ (x1,x2)) non-empty => interior cut.
-//
-// Vertical segment at x0:
-//
-//	if x1 < x0 < x2 and (y-range ∩ (y1,y2)) non-empty => interior cut.
 func (d *Day09) rectangleCutByPolygon(x1, y1, x2, y2 int) bool {
 	if x1 == x2 || y1 == y2 {
-		// Degenerate (line) rectangles don't really have interior.
-		// For AoC purposes, they are fine if corners are inside.
+		// Degenerate rectangles have no interior.
 		return false
 	}
 
@@ -225,7 +214,7 @@ func (d *Day09) rectangleCutByPolygon(x1, y1, x2, y2 int) bool {
 			if y0 <= y1 || y0 >= y2 {
 				continue
 			}
-			// e.x1..e.x2 vs (x1,x2)
+			// overlap with (x1,x2)
 			if maxInt(e.x1, x1) < minInt(e.x2, x2) {
 				return true
 			}
@@ -234,7 +223,7 @@ func (d *Day09) rectangleCutByPolygon(x1, y1, x2, y2 int) bool {
 			if x0 <= x1 || x0 >= x2 {
 				continue
 			}
-			// e.y1..e.y2 vs (y1,y2)
+			// overlap with (y1,y2)
 			if maxInt(e.y1, y1) < minInt(e.y2, y2) {
 				return true
 			}
