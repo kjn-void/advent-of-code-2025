@@ -69,24 +69,63 @@ func buildSortedEdges(points []vec3) []edge {
 		return nil
 	}
 
-	edges := make([]edge, 0, n*(n-1)/2)
-	for i := range n {
+	edges := make([]edge, n*(n-1)/2)
+	idx := 0
+	for i := 0; i < n-1; i++ {
 		pi := points[i]
 		for j := i + 1; j < n; j++ {
 			pj := points[j]
-			edges = append(edges, edge{
+			edges[idx] = edge{
 				dist2: squaredDist(pi, pj),
 				i:     i,
 				j:     j,
-			})
+			}
+			idx++
 		}
 	}
 
-	sort.Slice(edges, func(a, b int) bool {
-		return edges[a].dist2 < edges[b].dist2
-	})
-
+	radixSortEdges(edges)
 	return edges
+}
+
+func radixSortEdges(edges []edge) {
+	if len(edges) < 2 {
+		return
+	}
+
+	const (
+		radixBits = 16
+		buckets   = 1 << radixBits
+		mask      = buckets - 1
+	)
+
+	tmp := make([]edge, len(edges))
+	counts := make([]int, buckets)
+	src := edges
+	dst := tmp
+
+	for shift := uint(0); shift < 64; shift += radixBits {
+		for i := range counts {
+			counts[i] = 0
+		}
+		for _, e := range src {
+			counts[(uint64(e.dist2)>>shift)&mask]++
+		}
+
+		sum := 0
+		for i, count := range counts {
+			counts[i] = sum
+			sum += count
+		}
+
+		for _, e := range src {
+			bucket := (uint64(e.dist2) >> shift) & mask
+			dst[counts[bucket]] = e
+			counts[bucket]++
+		}
+
+		src, dst = dst, src
+	}
 }
 
 // -----------------------------------------------------------
@@ -155,15 +194,14 @@ func runConnections(points []vec3, edges []edge, k int) []int {
 		uf.union(e.i, e.j)
 	}
 
-	compMap := make(map[int]int)
+	seen := make([]bool, n)
+	sizes := make([]int, 0, n)
 	for i := range n {
 		r := uf.find(i)
-		compMap[r] = uf.size[r]
-	}
-
-	sizes := make([]int, 0, len(compMap))
-	for _, sz := range compMap {
-		sizes = append(sizes, sz)
+		if !seen[r] {
+			seen[r] = true
+			sizes = append(sizes, uf.size[r])
+		}
 	}
 
 	// Sort descending

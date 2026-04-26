@@ -225,30 +225,36 @@ func solveJoltage10(m MachineData) (int, error) {
 		return 0, nil
 	}
 
-	// Build augmented matrix mat (N x (M+1)) over R
-	mat := make([][]float64, N)
-	for i := range N {
-		row := make([]float64, M+1)
-		row[M] = float64(m.TargetJoltage[i])
-		mat[i] = row
+	cols := M + 1
+	mat := make([]float64, N*cols)
+	for i, target := range m.TargetJoltage {
+		mat[i*cols+M] = float64(target)
 	}
 
 	for j, btn := range m.Buttons {
 		for _, idx := range btn {
 			if idx < N {
-				mat[idx][j] = 1.0
+				mat[idx*cols+j] = 1.0
 			}
 		}
 	}
 
 	// RREF over R
 	pivotRow := 0
-	pivotCols := make(map[int]int)
+	pivotRowForCol := make([]int, M)
+	for i := range pivotRowForCol {
+		pivotRowForCol[i] = -1
+	}
+	pivotCap := N
+	if M < pivotCap {
+		pivotCap = M
+	}
+	pivotCols := make([]int, 0, pivotCap)
 
 	for col := 0; col < M && pivotRow < N; col++ {
 		sel := -1
 		for r := pivotRow; r < N; r++ {
-			if math.Abs(mat[r][col]) > 1e-9 {
+			if math.Abs(mat[r*cols+col]) > 1e-9 {
 				sel = r
 				break
 			}
@@ -257,13 +263,22 @@ func solveJoltage10(m MachineData) (int, error) {
 			continue
 		}
 
-		mat[pivotRow], mat[sel] = mat[sel], mat[pivotRow]
-		pivotCols[col] = pivotRow
+		if sel != pivotRow {
+			pivotBase := pivotRow * cols
+			selBase := sel * cols
+			for k := 0; k <= M; k++ {
+				mat[pivotBase+k], mat[selBase+k] = mat[selBase+k], mat[pivotBase+k]
+			}
+		}
+
+		pivotBase := pivotRow * cols
+		pivotRowForCol[col] = pivotRow
+		pivotCols = append(pivotCols, col)
 
 		// Normalize pivot to 1
-		div := mat[pivotRow][col]
+		div := mat[pivotBase+col]
 		for k := col; k <= M; k++ {
-			mat[pivotRow][k] /= div
+			mat[pivotBase+k] /= div
 		}
 
 		// Eliminate column in all other rows
@@ -271,12 +286,13 @@ func solveJoltage10(m MachineData) (int, error) {
 			if r == pivotRow {
 				continue
 			}
-			f := mat[r][col]
+			rowBase := r * cols
+			f := mat[rowBase+col]
 			if math.Abs(f) < 1e-9 {
 				continue
 			}
 			for k := col; k <= M; k++ {
-				mat[r][k] -= f * mat[pivotRow][k]
+				mat[rowBase+k] -= f * mat[pivotBase+k]
 			}
 		}
 
@@ -285,94 +301,115 @@ func solveJoltage10(m MachineData) (int, error) {
 
 	// Check consistency
 	for r := pivotRow; r < N; r++ {
-		if math.Abs(mat[r][M]) > 1e-9 {
+		if math.Abs(mat[r*cols+M]) > 1e-9 {
 			return 0, fmt.Errorf("inconsistent real system")
 		}
 	}
 
 	// Identify free variables
-	freeVars := make([]int, 0)
-	isPivotCol := make([]bool, M)
-	for c, r := range pivotCols {
-		_ = r
-		isPivotCol[c] = true
-	}
+	freeVars := make([]int, 0, M-len(pivotCols))
 	for c := range M {
-		if !isPivotCol[c] {
+		if pivotRowForCol[c] == -1 {
 			freeVars = append(freeVars, c)
 		}
 	}
 
-	// Very conservative bound: no button can be pressed more than max(target_i)+1
-	maxTarget := 0.0
-	for _, v := range m.TargetJoltage {
-		if float64(v) > maxTarget {
-			maxTarget = float64(v)
+	freeBounds := make([]int, len(freeVars))
+	for i, col := range freeVars {
+		bound := math.MaxInt
+		for _, idx := range m.Buttons[col] {
+			if idx < N && m.TargetJoltage[idx] < bound {
+				bound = m.TargetJoltage[idx]
+			}
+		}
+		if bound == math.MaxInt {
+			bound = 0
+		}
+		freeBounds[i] = bound
+	}
+
+	// Try smaller domains first so branch-and-bound finds a good total early.
+	for i := 1; i < len(freeVars); i++ {
+		col := freeVars[i]
+		bound := freeBounds[i]
+		j := i - 1
+		for j >= 0 && freeBounds[j] > bound {
+			freeVars[j+1] = freeVars[j]
+			freeBounds[j+1] = freeBounds[j]
+			j--
+		}
+		freeVars[j+1] = col
+		freeBounds[j+1] = bound
+	}
+
+	pivotCount := len(pivotCols)
+	pivotRHS := make([]float64, pivotCount)
+	pivotFreeCoeff := make([]float64, pivotCount*len(freeVars))
+	for i, col := range pivotCols {
+		rowBase := pivotRowForCol[col] * cols
+		pivotRHS[i] = mat[rowBase+M]
+		coeffBase := i * len(freeVars)
+		for j, freeCol := range freeVars {
+			pivotFreeCoeff[coeffBase+j] = mat[rowBase+freeCol]
 		}
 	}
-	searchBound := int(maxTarget) + 1
 
-	minTotal := math.MaxInt64
+	freeValues := make([]int, len(freeVars))
+	minTotal := math.MaxInt
 
 	// DFS over free variables with simple branch-and-bound on total presses
-	var dfs func(idx int, x []float64, currentSum int)
+	var dfs func(idx int, currentSum int)
 
-	dfs = func(idx int, x []float64, currentSum int) {
+	dfs = func(idx int, currentSum int) {
 		if currentSum >= minTotal {
 			return
 		}
 		if idx == len(freeVars) {
 			// All free vars set -> compute pivot vars
 			total := currentSum
-			valid := true
 
-			for c := range M {
-				r, isPivot := pivotCols[c]
-				if !isPivot {
-					continue
-				}
-
-				val := mat[r][M] // RHS
-				for k := c + 1; k < M; k++ {
-					if math.Abs(mat[r][k]) > 1e-9 {
-						val -= mat[r][k] * x[k]
+			for p := 0; p < pivotCount; p++ {
+				val := pivotRHS[p]
+				coeffBase := p * len(freeVars)
+				for f, x := range freeValues {
+					coeff := pivotFreeCoeff[coeffBase+f]
+					if math.Abs(coeff) > 1e-9 {
+						val -= coeff * float64(x)
 					}
 				}
 
 				if val < -1e-5 {
-					valid = false
-					break
+					return
 				}
 				rounded := math.Round(val)
 				if math.Abs(val-rounded) > 1e-5 {
-					valid = false
-					break
+					return
 				}
 				iVal := int(rounded)
-				x[c] = float64(iVal)
 				total += iVal
+				if total >= minTotal {
+					return
+				}
 			}
 
-			if valid && total < minTotal {
+			if total < minTotal {
 				minTotal = total
 			}
 			return
 		}
 
-		fc := freeVars[idx]
-		for v := 0; v <= searchBound; v++ {
-			x[fc] = float64(v)
-			dfs(idx+1, x, currentSum+v)
+		for v := 0; v <= freeBounds[idx]; v++ {
+			freeValues[idx] = v
+			dfs(idx+1, currentSum+v)
 			if currentSum+v >= minTotal {
 				break
 			}
 		}
 	}
 
-	x := make([]float64, M)
-	dfs(0, x, 0)
+	dfs(0, 0)
 
-	if minTotal == math.MaxInt64 {
+	if minTotal == math.MaxInt {
 		return 0, fmt.Errorf("no integer solution")
 	}
 	return minTotal, nil
@@ -400,7 +437,7 @@ func (d *Day10) SolvePart1() string {
 
 func (d *Day10) SolvePart2() string {
 	total := 0
-	resultCh := make(chan int)
+	resultCh := make(chan int, len(d.Machines))
 	for _, m := range d.Machines {
 		go func(m MachineData) {
 			res, err := solveJoltage10(m)
