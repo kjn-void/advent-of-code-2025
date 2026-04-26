@@ -19,7 +19,6 @@ type pt9 struct {
 type edge9 struct {
 	x1, y1 int
 	x2, y2 int
-	hor    bool
 }
 
 func init() {
@@ -84,7 +83,7 @@ func (d *Day09) SolvePart2() string {
 		d.buildEdges()
 	}
 
-	candidates := make([]rectCandidate9, 0, n*(n-1)/2)
+	best := 0
 
 	for i := 0; i < n; i++ {
 		a := d.reds[i]
@@ -96,84 +95,26 @@ func (d *Day09) SolvePart2() string {
 			y1 := minInt(a.y, b.y)
 			y2 := maxInt(a.y, b.y)
 
-			dx := x2 - x1 + 1
-			dy := y2 - y1 + 1
-			candidates = append(candidates, rectCandidate9{
-				x1:   x1,
-				y1:   y1,
-				x2:   x2,
-				y2:   y2,
-				area: dx * dy,
-			})
+			area := (x2 - x1 + 1) * (y2 - y1 + 1)
+			if area <= best {
+				continue
+			}
+
+			// Most larger rectangles are rejected here; avoid point-in-polygon work
+			// until after the cheaper edge-intersection scan.
+			if d.rectangleCutByPolygon(x1, y1, x2, y2) {
+				continue
+			}
+
+			if !d.pointInsideOrOn(pt9{x1, y2}) || !d.pointInsideOrOn(pt9{x2, y1}) {
+				continue
+			}
+
+			best = area
 		}
 	}
 
-	radixSortRectCandidatesByArea(candidates)
-
-	insideCache := make(map[pt9]bool, n*n/2)
-	for i := len(candidates) - 1; i >= 0; i-- {
-		c := candidates[i]
-		// The other two corners must be inside or on the polygon.
-		if !d.pointInsideOrOnCached(pt9{c.x1, c.y2}, insideCache) ||
-			!d.pointInsideOrOnCached(pt9{c.x2, c.y1}, insideCache) {
-			continue
-		}
-
-		// Ensure no polygon edge cuts through the interior of this rectangle.
-		if d.rectangleCutByPolygon(c.x1, c.y1, c.x2, c.y2) {
-			continue
-		}
-
-		return strconv.Itoa(c.area)
-	}
-
-	return "0"
-}
-
-type rectCandidate9 struct {
-	x1, y1 int
-	x2, y2 int
-	area   int
-}
-
-func radixSortRectCandidatesByArea(candidates []rectCandidate9) {
-	if len(candidates) < 2 {
-		return
-	}
-
-	const (
-		radixBits = 16
-		buckets   = 1 << radixBits
-		mask      = buckets - 1
-	)
-
-	tmp := make([]rectCandidate9, len(candidates))
-	counts := make([]int, buckets)
-	src := candidates
-	dst := tmp
-
-	for shift := uint(0); shift < 64; shift += radixBits {
-		for i := range counts {
-			counts[i] = 0
-		}
-		for _, c := range src {
-			counts[(uint64(c.area)>>shift)&mask]++
-		}
-
-		sum := 0
-		for i, count := range counts {
-			counts[i] = sum
-			sum += count
-		}
-
-		for _, c := range src {
-			bucket := (uint64(c.area) >> shift) & mask
-			dst[counts[bucket]] = c
-			counts[bucket]++
-		}
-
-		src, dst = dst, src
-	}
+	return strconv.Itoa(best)
 }
 
 // ----------------------------------------------------------
@@ -192,14 +133,12 @@ func (d *Day09) buildEdges() {
 		e := edge9{x1: a.x, y1: a.y, x2: b.x, y2: b.y}
 
 		if a.y == b.y {
-			e.hor = true
 			if e.x1 > e.x2 {
 				e.x1, e.x2 = e.x2, e.x1
 			}
 			// y1 == y2 already
 			hors = append(hors, e)
 		} else {
-			e.hor = false
 			// normalize to y1 < y2 for half-open tests
 			if e.y1 > e.y2 {
 				e.y1, e.y2 = e.y2, e.y1
@@ -235,15 +174,6 @@ func (d *Day09) pointInsideOrOn(p pt9) bool {
 
 	// Strict interior test using integer-only vertical-edge crossing.
 	return d.pointInsideStrict(p)
-}
-
-func (d *Day09) pointInsideOrOnCached(p pt9, cache map[pt9]bool) bool {
-	if inside, ok := cache[p]; ok {
-		return inside
-	}
-	inside := d.pointInsideOrOn(p)
-	cache[p] = inside
-	return inside
 }
 
 // Integer-only odd-even rule specialized for orthogonal polygons.
