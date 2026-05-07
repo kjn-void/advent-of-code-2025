@@ -26,18 +26,20 @@ type region struct {
 	counts        []int // number of presents of each shape index
 }
 
-type Day12 struct {
+type day12 struct {
 	shapes  []shape
 	regions []region
 }
 
 func init() {
-	Register(12, func() Solution { return &Day12{} })
+	Register(12, func() Solution { return &day12{} })
 }
 
 // --- Parsing ---------------------------------------------------------------
 
-func (d *Day12) SetInput(lines []string) {
+// SetInput parses the present shape definitions followed by tree-region fit
+// requests, storing normalized shape variants and region counts.
+func (d *day12) SetInput(lines []string) {
 	d.shapes = d.shapes[:0]
 	d.regions = d.regions[:0]
 
@@ -139,6 +141,8 @@ func (d *Day12) SetInput(lines []string) {
 	}
 }
 
+// isRegionLine reports whether s has the region header form "WxH: ..." and can
+// therefore mark the start of the region section.
 func isRegionLine(s string) bool {
 	s = strings.TrimSpace(s)
 	colonIdx := strings.IndexByte(s, ':')
@@ -161,6 +165,8 @@ func isRegionLine(s string) bool {
 
 // --- Shape construction (variants: rotations + flips) ----------------------
 
+// buildShape builds a present shape from diagram rows, generates unique rotated
+// and flipped variants, and returns the normalized shape metadata.
 func buildShape(rows []string) shape {
 	// Build initial grid as [][]bool
 	h0 := len(rows)
@@ -218,6 +224,8 @@ func buildShape(rows []string) shape {
 	}
 }
 
+// rotateGrid rotates a boolean shape grid 90 degrees clockwise and returns the
+// rotated grid.
 func rotateGrid(grid [][]bool) [][]bool {
 	height := len(grid)
 	if height == 0 {
@@ -237,6 +245,8 @@ func rotateGrid(grid [][]bool) [][]bool {
 	return res
 }
 
+// flipGridH mirrors a boolean shape grid horizontally and returns the flipped
+// grid.
 func flipGridH(grid [][]bool) [][]bool {
 	height := len(grid)
 	if height == 0 {
@@ -253,6 +263,8 @@ func flipGridH(grid [][]bool) [][]bool {
 	return res
 }
 
+// gridToVariant trims empty rows and columns from grid, converts occupied cells
+// to relative coordinates, and returns a normalized variant.
 func gridToVariant(grid [][]bool) variant {
 	height := len(grid)
 	if height == 0 {
@@ -304,6 +316,8 @@ func gridToVariant(grid [][]bool) variant {
 	}
 }
 
+// variantKey serializes a normalized variant into a stable key used to remove
+// duplicate rotations and flips.
 func variantKey(v variant) string {
 	var sb strings.Builder
 	sb.WriteString(strconv.Itoa(v.width))
@@ -323,7 +337,9 @@ func variantKey(v variant) string {
 
 const smallBoardMaxArea12 = 15 * 15 // full tiling search only if w*h <= this
 
-func (d *Day12) SolvePart1() string {
+// SolvePart1 counts regions whose listed presents can fit according to the
+// current exact-small-board and area-based-large-board checks.
+func (d *day12) SolvePart1() string {
 	valid := 0
 	for _, region := range d.regions {
 		if d.regionCanFit12(region) {
@@ -334,11 +350,15 @@ func (d *Day12) SolvePart1() string {
 }
 
 // For now, part two is unknown; implement a stub.
-func (d *Day12) SolvePart2() string {
+// SolvePart2 is currently unsolved for this day and returns the placeholder
+// value expected by the rest of the solution interface.
+func (d *day12) SolvePart2() string {
 	return "0"
 }
 
-func (d *Day12) regionCanFit12(r region) bool {
+// regionCanFit12 applies necessary area checks and, for small regions, an exact
+// tiling search to decide whether all requested presents fit.
+func (d *day12) regionCanFit12(r region) bool {
 	if len(d.shapes) == 0 {
 		return false
 	}
@@ -370,7 +390,9 @@ func (d *Day12) regionCanFit12(r region) bool {
 
 // --- Exact tiling search for small regions ---------------------------------
 
-func (d *Day12) canTileRegionSmall(r region) bool {
+// canTileRegionSmall precomputes every legal placement for each present shape on
+// a small board and returns whether backtracking can place all requested shapes.
+func (d *day12) canTileRegionSmall(r region) bool {
 	w, h := r.width, r.height
 	numShapes := len(d.shapes)
 	if numShapes == 0 {
@@ -414,7 +436,9 @@ func (d *Day12) canTileRegionSmall(r region) bool {
 	return d.btTile(board, w, h, counts, allPlacements)
 }
 
-func (d *Day12) btTile(board []bool, w, h int, counts []int, placements [][][]int) bool {
+// btTile recursively places remaining presents on board using the most
+// constrained shape first and returns true once all counts reach zero.
+func (d *day12) btTile(board []bool, w, h int, counts []int, placements [][][]int) bool {
 	// Check if all counts are zero (all presents placed).
 	done := true
 	totalRemainingArea := 0

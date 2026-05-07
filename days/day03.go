@@ -4,16 +4,18 @@ import (
 	"strconv"
 )
 
-type Day03 struct {
-	banks [][]int // each bank is a slice of digits
+type day03 struct {
+	batteryBanks [][]int
 }
 
 func init() {
-	Register(3, func() Solution { return &Day03{} })
+	Register(3, func() Solution { return &day03{} })
 }
 
-func (d *Day03) SetInput(lines []string) {
-	d.banks = d.banks[:0]
+// SetInput converts each battery-bank line into digits while preserving order,
+// which matters because selected batteries cannot be rearranged.
+func (d *day03) SetInput(lines []string) {
+	d.batteryBanks = d.batteryBanks[:0]
 
 	for _, line := range lines {
 		digits := make([]int, len(line))
@@ -21,7 +23,7 @@ func (d *Day03) SetInput(lines []string) {
 			digits[i] = int(ch - '0') // 1–9
 		}
 
-		d.banks = append(d.banks, digits)
+		d.batteryBanks = append(d.batteryBanks, digits)
 	}
 }
 
@@ -29,7 +31,9 @@ func (d *Day03) SetInput(lines []string) {
 // Part 1
 // -------------------------
 
-func (d *Day03) SolvePart1() string {
+// SolvePart1 finds the best two-battery joltage for each bank and returns their
+// total as a decimal string.
+func (d *day03) SolvePart1() string {
 	return d.maxJoltage(2)
 }
 
@@ -37,14 +41,18 @@ func (d *Day03) SolvePart1() string {
 // Part 2
 // -------------------------
 
-func (d *Day03) SolvePart2() string {
+// SolvePart2 applies the same ordered digit-selection algorithm using twelve
+// batteries per bank and returns the total joltage.
+func (d *day03) SolvePart2() string {
 	return d.maxJoltage(12)
 }
 
-func (d *Day03) maxJoltage(pick int) string {
+// maxJoltage selects pick digits from each bank to form the largest possible
+// ordered number, sums those numbers, and returns the total as a string.
+func (d *day03) maxJoltage(pick int) string {
 	total := int64(0)
 
-	for _, bank := range d.banks {
+	for _, bank := range d.batteryBanks {
 		n := len(bank)
 
 		need := pick
@@ -74,6 +82,8 @@ func (d *Day03) maxJoltage(pick int) string {
 	return strconv.FormatInt(total, 10)
 }
 
+// stackToNumber converts an ordered digit stack into the integer represented by
+// those digits.
 func stackToNumber(stack []int) int64 {
 	var val int64 = 0
 	for _, dgt := range stack {

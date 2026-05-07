@@ -5,16 +5,18 @@ import (
 	"strings"
 )
 
-type Day11 struct {
-	adj map[string][]string
+type day11 struct {
+	outputs map[string][]string
 }
 
 func init() {
-	Register(11, func() Solution { return &Day11{} })
+	Register(11, func() Solution { return &day11{} })
 }
 
-func (d *Day11) SetInput(lines []string) {
-	d.adj = make(map[string][]string)
+// SetInput parses device output lines into a directed graph from each device to
+// the devices receiving its outputs.
+func (d *day11) SetInput(lines []string) {
+	d.outputs = make(map[string][]string)
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -38,7 +40,7 @@ func (d *Day11) SetInput(lines []string) {
 				}
 			}
 		}
-		d.adj[from] = outs
+		d.outputs[from] = outs
 	}
 }
 
@@ -46,7 +48,9 @@ func (d *Day11) SetInput(lines []string) {
 // Part 1 — count all paths from "you" to "out"
 // -----------------------------------------------------------
 
-func (d *Day11) countPathsFrom(node string, memo map[string]int64, visiting map[string]bool) int64 {
+// countPathsFrom counts all directed paths from node to "out" using memoization;
+// visiting guards against accidental cycles in malformed input.
+func (d *day11) countPathsFrom(node string, memo map[string]int64, visiting map[string]bool) int64 {
 	// Base case: reaching "out" is one valid path.
 	if node == "out" {
 		return 1
@@ -66,7 +70,7 @@ func (d *Day11) countPathsFrom(node string, memo map[string]int64, visiting map[
 	}()
 
 	var total int64
-	for _, next := range d.adj[node] {
+	for _, next := range d.outputs[node] {
 		total += d.countPathsFrom(next, memo, visiting)
 	}
 
@@ -74,8 +78,9 @@ func (d *Day11) countPathsFrom(node string, memo map[string]int64, visiting map[
 	return total
 }
 
-func (d *Day11) SolvePart1() string {
-	if d.adj == nil {
+// SolvePart1 returns the number of directed paths from "you" to "out".
+func (d *day11) SolvePart1() string {
+	if d.outputs == nil {
 		return "0"
 	}
 
@@ -95,8 +100,10 @@ type day11State struct {
 	mask int // bit0: visited dac, bit1: visited fft
 }
 
-func (d *Day11) countPathsWithRequired(start, end string, need1, need2 string) int64 {
-	if d.adj == nil {
+// countPathsWithRequired counts directed paths from start to end that visit both
+// required nodes, carrying a bitmask of visited requirements through the DFS.
+func (d *day11) countPathsWithRequired(start, end string, need1, need2 string) int64 {
+	if d.outputs == nil {
 		return 0
 	}
 
@@ -129,7 +136,7 @@ func (d *Day11) countPathsWithRequired(start, end string, need1, need2 string) i
 
 		var total int64
 
-		for _, nxt := range d.adj[node] {
+		for _, nxt := range d.outputs[node] {
 			nextMask := mask
 			if nxt == need1 {
 				nextMask |= 1
@@ -147,7 +154,9 @@ func (d *Day11) countPathsWithRequired(start, end string, need1, need2 string) i
 	return dfs(start, mask)
 }
 
-func (d *Day11) SolvePart2() string {
+// SolvePart2 returns the number of paths from "svr" to "out" that visit both
+// required diagnostic devices "dac" and "fft".
+func (d *day11) SolvePart2() string {
 	// Count paths from "svr" to "out" that visit both "dac" and "fft"
 	total := d.countPathsWithRequired("svr", "out", "dac", "fft")
 	return strconv.FormatInt(total, 10)

@@ -1,11 +1,6 @@
 package days
 
-import (
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
-)
+import "testing"
 
 const day11ExamplePart1 = `
 aaa: you hhh
@@ -37,7 +32,7 @@ hhh: out
 `
 
 func TestDay11_Part1_Example(t *testing.T) {
-	var d Day11
+	var d day11
 	lines := splitLines(day11ExamplePart1)
 	d.SetInput(lines)
 
@@ -49,7 +44,7 @@ func TestDay11_Part1_Example(t *testing.T) {
 }
 
 func TestDay11_Part2_Example(t *testing.T) {
-	var d Day11
+	var d day11
 	lines := splitLines(day11ExamplePart2)
 	d.SetInput(lines)
 
@@ -60,57 +55,6 @@ func TestDay11_Part2_Example(t *testing.T) {
 	}
 }
 
-// loadRealInputDay11 loads the actual AoC input from input/day11.txt
-func loadRealInputDay11(b *testing.B) []string {
-	path := filepath.Join("..", "input", "day11.txt")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		b.Fatalf("Missing input file: %v", err)
-	}
-	raw := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	return raw
-}
-
-func BenchmarkDay11_SetInput(b *testing.B) {
-	lines := loadRealInputDay11(b)
-
-	var d Day11
-
-	for b.Loop() {
-		d.SetInput(lines)
-	}
-}
-
-func BenchmarkDay11_SolvePart1(b *testing.B) {
-	lines := loadRealInputDay11(b)
-
-	var d Day11
-	d.SetInput(lines)
-
-	for b.Loop() {
-		_ = d.SolvePart1()
-	}
-}
-
-func BenchmarkDay11_SolvePart2(b *testing.B) {
-	lines := loadRealInputDay11(b)
-
-	var d Day11
-	d.SetInput(lines)
-
-	for b.Loop() {
-		_ = d.SolvePart2()
-	}
-}
-
-func BenchmarkDay11_FullPipeline(b *testing.B) {
-	lines := loadRealInputDay11(b)
-
-	for b.Loop() {
-		var d Day11
-		d.SetInput(lines)
-		_ = d.SolvePart1()
-		_ = d.SolvePart2()
-	}
+func BenchmarkDay11(b *testing.B) {
+	benchmarkDay(b, 11, func() Solution { return &day11{} })
 }

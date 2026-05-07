@@ -1,11 +1,6 @@
 package days
 
-import (
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
-)
+import "testing"
 
 var day06ExampleInput = []string{
 	"123 328  51 64 ",
@@ -15,7 +10,7 @@ var day06ExampleInput = []string{
 }
 
 func TestDay06Part1(t *testing.T) {
-	s := &Day06{}
+	s := &day06{}
 	s.SetInput(day06ExampleInput)
 
 	got := s.SolvePart1()
@@ -27,7 +22,7 @@ func TestDay06Part1(t *testing.T) {
 }
 
 func TestDay06Part2(t *testing.T) {
-	s := &Day06{}
+	s := &day06{}
 	s.SetInput(day06ExampleInput)
 
 	got := s.SolvePart2()
@@ -38,60 +33,6 @@ func TestDay06Part2(t *testing.T) {
 	}
 }
 
-// ------------------------
-// Benchmarks
-// ------------------------
-
-func loadRealInputDay06(b *testing.B) []string {
-	path := filepath.Join("..", "input", "day06.txt")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		b.Fatalf("Missing input file: %v", err)
-	}
-	return strings.Split(strings.TrimSpace(string(data)), "\n")
-}
-
-// 1. Benchmark SetInput() — parsing only
-func BenchmarkDay06_SetInput(b *testing.B) {
-	for b.Loop() {
-		lines := loadRealInputDay06(b)
-		s := &Day06{}
-		s.SetInput(lines)
-	}
-}
-
-// 2. Benchmark SolvePart1 only
-func BenchmarkDay06_SolvePart1(b *testing.B) {
-	lines := loadRealInputDay06(b)
-
-	s := &Day06{}
-	s.SetInput(lines)
-
-	for b.Loop() {
-		_ = s.SolvePart1()
-	}
-}
-
-// 3. Benchmark SolvePart2 only
-func BenchmarkDay06_SolvePart2(b *testing.B) {
-	lines := loadRealInputDay06(b)
-
-	s := &Day06{}
-	s.SetInput(lines)
-
-	for b.Loop() {
-		_ = s.SolvePart2()
-	}
-}
-
-// 4. Benchmark full pipeline (SetInput + Part1 + Part2)
-func BenchmarkDay06_FullPipeline(b *testing.B) {
-	for b.Loop() {
-		lines := loadRealInputDay06(b)
-		s := &Day06{}
-		s.SetInput(lines)
-		_ = s.SolvePart1()
-		_ = s.SolvePart2()
-	}
+func BenchmarkDay06(b *testing.B) {
+	benchmarkDay(b, 6, func() Solution { return &day06{} })
 }

@@ -1,8 +1,6 @@
 package days
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -14,7 +12,7 @@ const day10Example = `
 `
 
 func TestDay10_Part1_Example(t *testing.T) {
-	var d Day10
+	var d day10
 	lines := splitLines(day10Example)
 	d.SetInput(lines)
 
@@ -26,7 +24,7 @@ func TestDay10_Part1_Example(t *testing.T) {
 }
 
 func TestDay10_Part2_Example(t *testing.T) {
-	var d Day10
+	var d day10
 	lines := splitLines(day10Example)
 	d.SetInput(lines)
 
@@ -34,6 +32,23 @@ func TestDay10_Part2_Example(t *testing.T) {
 	want := "33"
 	if got != want {
 		t.Fatalf("Part2 example: got %s, want %s", got, want)
+	}
+}
+
+func TestDay10_SingleMachine(t *testing.T) {
+	var d day10
+	// One light at index 0, one button (0) affecting index 0, target joltage 5
+	input := "[#] (0) {5}"
+	d.SetInput([]string{input})
+
+	got1 := d.SolvePart1()
+	if got1 != "1" {
+		t.Errorf("Part1 single machine: got %s, want 1", got1)
+	}
+
+	got2 := d.SolvePart2()
+	if got2 != "5" {
+		t.Errorf("Part2 single machine: got %s, want 5", got2)
 	}
 }
 
@@ -51,59 +66,6 @@ func splitLines(s string) []string {
 	return out
 }
 
-// loadRealInputDay10 loads the actual AoC input from input/day09.txt
-func loadRealInputDay10(b *testing.B) []string {
-	path := filepath.Join("..", "input", "day10.txt")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		b.Fatalf("Missing input file: %v", err)
-	}
-	raw := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-	return raw
-}
-
-// day10_bench_test.go
-func BenchmarkDay10_SetInput(b *testing.B) {
-	lines := loadRealInputDay10(b)
-
-	var d Day10
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		d.SetInput(lines)
-	}
-}
-
-func BenchmarkDay10_SolvePart1(b *testing.B) {
-	lines := loadRealInputDay10(b)
-
-	var d Day10
-	d.SetInput(lines)
-
-	for b.Loop() {
-		_ = d.SolvePart1()
-	}
-}
-
-func BenchmarkDay10_SolvePart2(b *testing.B) {
-	lines := loadRealInputDay10(b)
-
-	var d Day10
-	d.SetInput(lines)
-
-	for b.Loop() {
-		_ = d.SolvePart2()
-	}
-}
-
-func BenchmarkDay10_FullPipeline(b *testing.B) {
-	lines := loadRealInputDay10(b)
-
-	for b.Loop() {
-		var d Day10
-		d.SetInput(lines)
-		_ = d.SolvePart1()
-		_ = d.SolvePart2()
-	}
+func BenchmarkDay10(b *testing.B) {
+	benchmarkDay(b, 10, func() Solution { return &day10{} })
 }

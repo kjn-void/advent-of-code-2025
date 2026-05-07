@@ -5,19 +5,21 @@ import (
 	"strings"
 )
 
-type Day01 struct {
-	// Each move is a signed delta:
+type day01 struct {
+	// Each rotation is a signed dial delta:
 	//   Rn => +n (right / increasing)
 	//   Ln => -n (left / decreasing)
-	moves []int
+	rotations []int
 }
 
 func init() {
-	Register(1, func() Solution { return &Day01{} })
+	Register(1, func() Solution { return &day01{} })
 }
 
-func (d *Day01) SetInput(lines []string) {
-	d.moves = d.moves[:0]
+// SetInput parses rotation instructions like "L68" and "R8" into signed dial
+// movements stored on the solver for both parts.
+func (d *day01) SetInput(lines []string) {
+	d.rotations = d.rotations[:0]
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -29,14 +31,16 @@ func (d *Day01) SetInput(lines []string) {
 		val, _ := strconv.Atoi(line[1:])
 
 		if dir == 'L' {
-			d.moves = append(d.moves, -val)
+			d.rotations = append(d.rotations, -val)
 		} else { // 'R'
-			d.moves = append(d.moves, val)
+			d.rotations = append(d.rotations, val)
 		}
 	}
 }
 
-func mod100(n int) int {
+// dialPosition wraps n onto the safe dial's 0..99 range and returns the
+// normalized position.
+func dialPosition(n int) int {
 	n %= 100
 	if n < 0 {
 		n += 100
@@ -44,42 +48,46 @@ func mod100(n int) int {
 	return n
 }
 
-func (d *Day01) SolvePart1() string {
-	pos := 50
-	countZero := 0
+// SolvePart1 follows each full rotation from the starting dial position and
+// returns how many rotations leave the dial pointing at zero.
+func (d *day01) SolvePart1() string {
+	dial := 50
+	zeroStops := 0
 
-	for _, delta := range d.moves {
-		pos = mod100(pos + delta)
-		if pos == 0 {
-			countZero++
+	for _, rotation := range d.rotations {
+		dial = dialPosition(dial + rotation)
+		if dial == 0 {
+			zeroStops++
 		}
 	}
 
-	return strconv.Itoa(countZero)
+	return strconv.Itoa(zeroStops)
 }
 
-func (d *Day01) SolvePart2() string {
-	pos := 50
-	countZero := 0
+// SolvePart2 walks every individual click in each rotation and returns how many
+// times the dial crosses or lands on zero during the full instruction list.
+func (d *day01) SolvePart2() string {
+	dial := 50
+	zeroClicks := 0
 
-	for _, delta := range d.moves {
+	for _, rotation := range d.rotations {
 		step := 1
-		if delta < 0 {
+		if rotation < 0 {
 			step = -1
 		}
 
-		for moved := 0; moved != delta; moved += step {
-			pos = pos + step
-			if pos < 0 {
-				pos = pos + 100
-			} else if pos >= 100 {
-				pos = pos - 100
+		for moved := 0; moved != rotation; moved += step {
+			dial += step
+			if dial < 0 {
+				dial += 100
+			} else if dial >= 100 {
+				dial -= 100
 			}
-			if pos == 0 {
-				countZero++
+			if dial == 0 {
+				zeroClicks++
 			}
 		}
 	}
 
-	return strconv.Itoa(countZero)
+	return strconv.Itoa(zeroClicks)
 }

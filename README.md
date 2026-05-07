@@ -20,6 +20,7 @@ aoc2025/
 ├── README.md
 ├── go.mod
 ├── main.go
+├── problems.yaml       # brief day titles and descriptions for verbose output
 │
 ├── input/              # cached input files (auto-created)
 │     └── (empty until downloaded)
@@ -36,6 +37,8 @@ aoc2025/
 
 ## 🚀 Running
 
+By default, the CLI runs in brief mode: it prints only the day header and the two answers.
+
 Run a single day:
 
     ./aoc2025 1
@@ -49,6 +52,16 @@ Run multiple days:
     ./aoc2025 1 4 5
 
 The CLI accepts any number of days between 1–12.
+
+Show the brief problem description before solving each selected day:
+
+    ./aoc2025 --verbose 1
+
+or:
+
+    ./aoc2025 -v 1 4 5
+
+Descriptions are read from `problems.yaml`. If that file is unavailable, solving still works; the CLI prints a warning and continues without descriptions.
 
 ## 🌐 Automatic Input Download From adventofcode.com
 

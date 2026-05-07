@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type Day09 struct {
+type day09 struct {
 	reds      []pt9
 	edges     []edge9
 	vertEdges []edge9 // cached vertical edges for fast inside test
@@ -22,10 +22,11 @@ type edge9 struct {
 }
 
 func init() {
-	Register(9, func() Solution { return &Day09{} })
+	Register(9, func() Solution { return &day09{} })
 }
 
-func (d *Day09) SetInput(lines []string) {
+// SetInput parses red tile coordinates and clears derived polygon edge caches.
+func (d *day09) SetInput(lines []string) {
 	d.reds = d.reds[:0]
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -46,11 +47,15 @@ func (d *Day09) SetInput(lines []string) {
 // Part 1 - largest rectangle from any two red tiles
 // ----------------------------------------------------------
 
-func (d *Day09) SolvePart1() string {
+// SolvePart1 checks every pair of red tiles as opposite rectangle corners and
+// returns the largest inclusive area.
+func (d *day09) SolvePart1() string {
 	best := maxAreaInclusive(d.reds)
 	return strconv.Itoa(best)
 }
 
+// maxAreaInclusive scans point pairs and returns the largest rectangle area when
+// grid tiles on both boundaries are counted.
 func maxAreaInclusive(points []pt9) int {
 	n := len(points)
 	if n < 2 {
@@ -74,7 +79,9 @@ func maxAreaInclusive(points []pt9) int {
 // Part 2 - rectangles fully inside orthogonal polygon
 // ----------------------------------------------------------
 
-func (d *Day09) SolvePart2() string {
+// SolvePart2 checks candidate rectangles against the red-tile polygon boundary
+// and returns the largest inclusive area fully inside it.
+func (d *day09) SolvePart2() string {
 	n := len(d.reds)
 	if n < 2 {
 		return "0"
@@ -121,7 +128,9 @@ func (d *Day09) SolvePart2() string {
 // Polygon edges
 // ----------------------------------------------------------
 
-func (d *Day09) buildEdges() {
+// buildEdges converts the ordered red tiles into normalized horizontal and
+// vertical polygon edges used by intersection and point-in-polygon checks.
+func (d *day09) buildEdges() {
 	n := len(d.reds)
 	edges := make([]edge9, 0, n)
 	verts := make([]edge9, 0, n)
@@ -159,7 +168,9 @@ func (d *Day09) buildEdges() {
 // Point in polygon (inside or on boundary)
 // ----------------------------------------------------------
 
-func (d *Day09) pointInsideOrOn(p pt9) bool {
+// pointInsideOrOn reports whether p lies on the polygon boundary or strictly
+// inside the polygon.
+func (d *day09) pointInsideOrOn(p pt9) bool {
 	// Boundary check (allowed):
 	for _, e := range d.horEdges {
 		if p.y == e.y1 && p.x >= e.x1 && p.x <= e.x2 {
@@ -179,7 +190,8 @@ func (d *Day09) pointInsideOrOn(p pt9) bool {
 // Integer-only odd-even rule specialized for orthogonal polygons.
 // Count vertical edges strictly to the right of p that cross scanline y = p.y.
 // Use half-open interval [y1, y2) to avoid double counting at vertices.
-func (d *Day09) pointInsideStrict(p pt9) bool {
+// It returns true when p is strictly inside the polygon.
+func (d *day09) pointInsideStrict(p pt9) bool {
 	crossings := 0
 	for _, e := range d.vertEdges {
 		// vertical edge at x = e.x1, y in [e.y1, e.y2)
@@ -196,7 +208,9 @@ func (d *Day09) pointInsideStrict(p pt9) bool {
 //
 // Rectangle is [x1,x2] × [y1,y2], inclusive corner tiles.
 // We treat the *interior* as (x1,x2) × (y1,y2) (open intervals).
-func (d *Day09) rectangleCutByPolygon(x1, y1, x2, y2 int) bool {
+// rectangleCutByPolygon returns true if any polygon edge crosses that open
+// interior, which disqualifies the rectangle for part two.
+func (d *day09) rectangleCutByPolygon(x1, y1, x2, y2 int) bool {
 	if x1 == x2 || y1 == y2 {
 		// Degenerate rectangles have no interior.
 		return false

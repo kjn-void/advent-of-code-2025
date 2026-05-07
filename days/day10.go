@@ -7,25 +7,26 @@ import (
 	"strings"
 )
 
-// MachineData holds the parsed information for a single machine
-type MachineData struct {
-	TargetLights  []int   // Part 1 target vector (0/1)
-	TargetJoltage []int   // Part 2 target vector (integers)
-	Buttons       [][]int // For each button: list of affected indices (defines matrix A)
+type machine struct {
+	targetLights  []int
+	targetJoltage []int
+	buttons       [][]int
 }
 
-type Day10 struct {
-	Machines []MachineData
+type day10 struct {
+	machines []machine
 }
 
 func init() {
-	Register(10, func() Solution { return &Day10{} })
+	Register(10, func() Solution { return &day10{} })
 }
 
 // ------------------------------------------------------------
 // Parsing
 // ------------------------------------------------------------
 
+// parseList parses a bracketed, parenthesized, or braced comma-separated list of
+// integers and returns the values inside it.
 func parseList(s string) []int {
 	s = strings.TrimSpace(s)
 	if len(s) < 2 {
@@ -47,8 +48,10 @@ func parseList(s string) []int {
 	return result
 }
 
-func (d *Day10) SetInput(lines []string) {
-	d.Machines = d.Machines[:0]
+// SetInput parses each machine manual line into target indicator lights,
+// button wiring, and joltage requirements for the two solvers.
+func (d *day10) SetInput(lines []string) {
+	d.machines = d.machines[:0]
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -102,10 +105,10 @@ func (d *Day10) SetInput(lines []string) {
 			midSection = midSection[pEnd+1:]
 		}
 
-		d.Machines = append(d.Machines, MachineData{
-			TargetLights:  lights,
-			TargetJoltage: joltage,
-			Buttons:       buttons,
+		d.machines = append(d.machines, machine{
+			targetLights:  lights,
+			targetJoltage: joltage,
+			buttons:       buttons,
 		})
 	}
 }
@@ -114,25 +117,27 @@ func (d *Day10) SetInput(lines []string) {
 // Part 1: GF(2) linear system, minimal Hamming weight
 // ------------------------------------------------------------
 
-func solveLights10(m MachineData) (int, error) {
-	N := len(m.TargetLights)
-	M := len(m.Buttons)
-	if N == 0 || M == 0 {
+// solveIndicatorLights solves the button-toggle system over GF(2) for one
+// machine and returns the minimum number of button presses needed for lights.
+func solveIndicatorLights(m machine) (int, error) {
+	nLights := len(m.targetLights)
+	nButtons := len(m.buttons)
+	if nLights == 0 || nButtons == 0 {
 		return 0, nil
 	}
 
-	// mat is N x (M+1) augmented matrix over GF(2)
-	mat := make([][]int, N)
-	for i := range N {
-		row := make([]int, M+1)
-		row[M] = m.TargetLights[i]
+	// mat is nLights x (nButtons+1) augmented matrix over GF(2)
+	mat := make([][]int, nLights)
+	for i := range nLights {
+		row := make([]int, nButtons+1)
+		row[nButtons] = m.targetLights[i]
 		mat[i] = row
 	}
 
 	// Fill A part
-	for j, btn := range m.Buttons {
+	for j, btn := range m.buttons {
 		for _, idx := range btn {
-			if idx < N {
+			if idx < nLights {
 				mat[idx][j] = 1
 			}
 		}
@@ -142,9 +147,9 @@ func solveLights10(m MachineData) (int, error) {
 	pivotCols := make(map[int]int) // col -> row
 
 	// Gaussian elimination over GF(2)
-	for col := 0; col < M && pivotRow < N; col++ {
+	for col := 0; col < nButtons && pivotRow < nLights; col++ {
 		sel := -1
-		for r := pivotRow; r < N; r++ {
+		for r := pivotRow; r < nLights; r++ {
 			if mat[r][col] == 1 {
 				sel = r
 				break
@@ -157,9 +162,9 @@ func solveLights10(m MachineData) (int, error) {
 		mat[pivotRow], mat[sel] = mat[sel], mat[pivotRow]
 		pivotCols[col] = pivotRow
 
-		for r := range N {
+		for r := range nLights {
 			if r != pivotRow && mat[r][col] == 1 {
-				for k := col; k <= M; k++ {
+				for k := col; k <= nButtons; k++ {
 					mat[r][k] ^= mat[pivotRow][k]
 				}
 			}
@@ -169,18 +174,18 @@ func solveLights10(m MachineData) (int, error) {
 
 	// Identify free variables
 	freeVars := make([]int, 0)
-	for c := range M {
+	for c := range nButtons {
 		if _, ok := pivotCols[c]; !ok {
 			freeVars = append(freeVars, c)
 		}
 	}
 
-	minPresses := M + 1
+	minPresses := nButtons + 1
 	count := 1 << len(freeVars)
 
 	// Brute force over free variables; deduce pivot vars
 	for mask := range count {
-		x := make([]int, M)
+		x := make([]int, nButtons)
 
 		// Assign free variables
 		for i, fIdx := range freeVars {
@@ -190,10 +195,10 @@ func solveLights10(m MachineData) (int, error) {
 		}
 
 		// Compute pivot variables by back-substitution
-		for c := M - 1; c >= 0; c-- {
+		for c := nButtons - 1; c >= 0; c-- {
 			if r, isPivot := pivotCols[c]; isPivot {
-				val := mat[r][M]
-				for k := c + 1; k < M; k++ {
+				val := mat[r][nButtons]
+				for k := c + 1; k < nButtons; k++ {
 					if mat[r][k] == 1 {
 						val ^= x[k]
 					}
@@ -218,22 +223,24 @@ func solveLights10(m MachineData) (int, error) {
 // Part 2: Real RREF + integer search over free vars
 // ------------------------------------------------------------
 
-func solveJoltage10(m MachineData) (int, error) {
-	N := len(m.TargetJoltage)
-	M := len(m.Buttons)
-	if N == 0 || M == 0 {
+// solveJoltageRequirements solves the integer button-press system for one
+// machine's joltage requirements and returns the minimum total press count.
+func solveJoltageRequirements(m machine) (int, error) {
+	nLights := len(m.targetJoltage)
+	nButtons := len(m.buttons)
+	if nLights == 0 || nButtons == 0 {
 		return 0, nil
 	}
 
-	cols := M + 1
-	mat := make([]float64, N*cols)
-	for i, target := range m.TargetJoltage {
-		mat[i*cols+M] = float64(target)
+	cols := nButtons + 1
+	mat := make([]float64, nLights*cols)
+	for i, target := range m.targetJoltage {
+		mat[i*cols+nButtons] = float64(target)
 	}
 
-	for j, btn := range m.Buttons {
+	for j, btn := range m.buttons {
 		for _, idx := range btn {
-			if idx < N {
+			if idx < nLights {
 				mat[idx*cols+j] = 1.0
 			}
 		}
@@ -241,19 +248,19 @@ func solveJoltage10(m MachineData) (int, error) {
 
 	// RREF over R
 	pivotRow := 0
-	pivotRowForCol := make([]int, M)
+	pivotRowForCol := make([]int, nButtons)
 	for i := range pivotRowForCol {
 		pivotRowForCol[i] = -1
 	}
-	pivotCap := N
-	if M < pivotCap {
-		pivotCap = M
+	pivotCap := nLights
+	if nButtons < pivotCap {
+		pivotCap = nButtons
 	}
 	pivotCols := make([]int, 0, pivotCap)
 
-	for col := 0; col < M && pivotRow < N; col++ {
+	for col := 0; col < nButtons && pivotRow < nLights; col++ {
 		sel := -1
-		for r := pivotRow; r < N; r++ {
+		for r := pivotRow; r < nLights; r++ {
 			if math.Abs(mat[r*cols+col]) > 1e-9 {
 				sel = r
 				break
@@ -266,7 +273,7 @@ func solveJoltage10(m MachineData) (int, error) {
 		if sel != pivotRow {
 			pivotBase := pivotRow * cols
 			selBase := sel * cols
-			for k := 0; k <= M; k++ {
+			for k := 0; k <= nButtons; k++ {
 				mat[pivotBase+k], mat[selBase+k] = mat[selBase+k], mat[pivotBase+k]
 			}
 		}
@@ -277,12 +284,12 @@ func solveJoltage10(m MachineData) (int, error) {
 
 		// Normalize pivot to 1
 		div := mat[pivotBase+col]
-		for k := col; k <= M; k++ {
+		for k := col; k <= nButtons; k++ {
 			mat[pivotBase+k] /= div
 		}
 
 		// Eliminate column in all other rows
-		for r := 0; r < N; r++ {
+		for r := 0; r < nLights; r++ {
 			if r == pivotRow {
 				continue
 			}
@@ -291,7 +298,7 @@ func solveJoltage10(m MachineData) (int, error) {
 			if math.Abs(f) < 1e-9 {
 				continue
 			}
-			for k := col; k <= M; k++ {
+			for k := col; k <= nButtons; k++ {
 				mat[rowBase+k] -= f * mat[pivotBase+k]
 			}
 		}
@@ -300,15 +307,15 @@ func solveJoltage10(m MachineData) (int, error) {
 	}
 
 	// Check consistency
-	for r := pivotRow; r < N; r++ {
-		if math.Abs(mat[r*cols+M]) > 1e-9 {
+	for r := pivotRow; r < nLights; r++ {
+		if math.Abs(mat[r*cols+nButtons]) > 1e-9 {
 			return 0, fmt.Errorf("inconsistent real system")
 		}
 	}
 
 	// Identify free variables
-	freeVars := make([]int, 0, M-len(pivotCols))
-	for c := range M {
+	freeVars := make([]int, 0, nButtons-len(pivotCols))
+	for c := range nButtons {
 		if pivotRowForCol[c] == -1 {
 			freeVars = append(freeVars, c)
 		}
@@ -317,9 +324,9 @@ func solveJoltage10(m MachineData) (int, error) {
 	freeBounds := make([]int, len(freeVars))
 	for i, col := range freeVars {
 		bound := math.MaxInt
-		for _, idx := range m.Buttons[col] {
-			if idx < N && m.TargetJoltage[idx] < bound {
-				bound = m.TargetJoltage[idx]
+		for _, idx := range m.buttons[col] {
+			if idx < nLights && m.targetJoltage[idx] < bound {
+				bound = m.targetJoltage[idx]
 			}
 		}
 		if bound == math.MaxInt {
@@ -347,7 +354,7 @@ func solveJoltage10(m MachineData) (int, error) {
 	pivotFreeCoeff := make([]float64, pivotCount*len(freeVars))
 	for i, col := range pivotCols {
 		rowBase := pivotRowForCol[col] * cols
-		pivotRHS[i] = mat[rowBase+M]
+		pivotRHS[i] = mat[rowBase+nButtons]
 		coeffBase := i * len(freeVars)
 		for j, freeCol := range freeVars {
 			pivotFreeCoeff[coeffBase+j] = mat[rowBase+freeCol]
@@ -419,13 +426,15 @@ func solveJoltage10(m MachineData) (int, error) {
 // Day interface
 // ------------------------------------------------------------
 
-func (d *Day10) SolvePart1() string {
+// SolvePart1 sums the minimum indicator-light button presses across all parsed
+// machines and returns the total.
+func (d *day10) SolvePart1() string {
 	total := 0
-	for _, m := range d.Machines {
-		if len(m.TargetLights) == 0 {
+	for _, m := range d.machines {
+		if len(m.targetLights) == 0 {
 			continue
 		}
-		res, err := solveLights10(m)
+		res, err := solveIndicatorLights(m)
 		if err != nil {
 			// With AoC input we expect solutions; panic if not.
 			panic(fmt.Sprintf("Day10 Part1: %v", err))
@@ -435,19 +444,21 @@ func (d *Day10) SolvePart1() string {
 	return strconv.Itoa(total)
 }
 
-func (d *Day10) SolvePart2() string {
+// SolvePart2 solves each machine's joltage system concurrently, sums the minimum
+// press counts, and returns the total.
+func (d *day10) SolvePart2() string {
 	total := 0
-	resultCh := make(chan int, len(d.Machines))
-	for _, m := range d.Machines {
-		go func(m MachineData) {
-			res, err := solveJoltage10(m)
+	resultCh := make(chan int, len(d.machines))
+	for _, m := range d.machines {
+		go func(m machine) {
+			res, err := solveJoltageRequirements(m)
 			if err != nil {
 				panic(fmt.Sprintf("Day10 Part2: %v", err))
 			}
 			resultCh <- res
 		}(m)
 	}
-	for range d.Machines {
+	for range d.machines {
 		total += <-resultCh
 	}
 	return strconv.Itoa(total)

@@ -5,17 +5,20 @@ import (
 	"strings"
 )
 
-type Day07 struct {
-	grid       []string
-	Rows, Cols int
-	startCol   int // start column for S
+type day07 struct {
+	grid     []string
+	rows     int
+	cols     int
+	startCol int
 }
 
 func init() {
-	Register(7, func() Solution { return &Day07{} })
+	Register(7, func() Solution { return &day07{} })
 }
 
-func (d *Day07) SetInput(lines []string) {
+// SetInput stores the tachyon manifold diagram, normalizes row widths, and
+// records the starting column marked by S.
+func (d *day07) SetInput(lines []string) {
 	d.grid = d.grid[:0]
 
 	// Keep layout exactly; AoC never gives malformed lines
@@ -31,11 +34,11 @@ func (d *Day07) SetInput(lines []string) {
 		}
 	}
 
-	d.Rows = len(d.grid)
-	d.Cols = maxC
+	d.rows = len(d.grid)
+	d.cols = maxC
 
 	// Locate S on first row
-	for c := 0; c < d.Cols; c++ {
+	for c := 0; c < d.cols; c++ {
 		if d.grid[0][c] == 'S' {
 			d.startCol = c
 			return
@@ -47,10 +50,12 @@ func (d *Day07) SetInput(lines []string) {
 // Part 1 — Linear beam simulation counting split events
 // -----------------------------------------------------------
 
-func (d *Day07) SolvePart1() string {
+// SolvePart1 simulates reachable beam positions row by row and returns the
+// number of splitter cells hit by any beam.
+func (d *day07) SolvePart1() string {
 	// Double buffer: two rows of bools we alternate between
-	bufA := make([]bool, d.Cols)
-	bufB := make([]bool, d.Cols)
+	bufA := make([]bool, d.cols)
+	bufB := make([]bool, d.cols)
 
 	active := bufA
 	next := bufB
@@ -58,7 +63,7 @@ func (d *Day07) SolvePart1() string {
 	active[d.startCol] = true
 	splitCount := 0
 
-	for r := 1; r < d.Rows; r++ {
+	for r := 1; r < d.rows; r++ {
 		row := d.grid[r]
 
 		clear(next)
@@ -90,17 +95,19 @@ func (d *Day07) SolvePart1() string {
 // Part 2 — Count all timelines (many-worlds interpretation)
 // -----------------------------------------------------------
 
-func (d *Day07) SolvePart2() string {
+// SolvePart2 propagates counts of distinct beam timelines through the manifold
+// and returns the number of timelines that exit the bottom.
+func (d *day07) SolvePart2() string {
 	// Double buffer: two rows of int64 we alternate between
-	bufA := make([]int64, d.Cols)
-	bufB := make([]int64, d.Cols)
+	bufA := make([]int64, d.cols)
+	bufB := make([]int64, d.cols)
 
 	timelines := bufA
 	next := bufB
 
 	timelines[d.startCol] = 1
 
-	for r := 1; r < d.Rows; r++ {
+	for r := 1; r < d.rows; r++ {
 		row := d.grid[r]
 
 		clear(next)

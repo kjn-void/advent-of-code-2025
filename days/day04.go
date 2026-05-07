@@ -4,17 +4,19 @@ import (
 	"strconv"
 )
 
-type Day04 struct {
+type day04 struct {
 	grid []string
 	rows int
 	cols int
 }
 
 func init() {
-	Register(4, func() Solution { return &Day04{} })
+	Register(4, func() Solution { return &day04{} })
 }
 
-func (d *Day04) SetInput(lines []string) {
+// SetInput stores the paper-roll diagram and records its dimensions for the
+// adjacency checks used by both parts.
+func (d *day04) SetInput(lines []string) {
 	d.grid = d.grid[:0]
 
 	for _, line := range lines {
@@ -35,7 +37,9 @@ var day04Dirs = [8][2]int{
 	{1, -1}, {1, 0}, {1, 1},
 }
 
-func (d *Day04) makeBoolGrid() [][]bool {
+// makeBoolGrid converts the original diagram into a mutable occupancy grid and
+// returns true for cells containing a paper roll.
+func (d *day04) makeBoolGrid() [][]bool {
 	out := make([][]bool, d.rows)
 	for r := 0; r < d.rows; r++ {
 		row := make([]bool, d.cols)
@@ -48,7 +52,9 @@ func (d *Day04) makeBoolGrid() [][]bool {
 	return out
 }
 
-func (d *Day04) computeDegrees(on [][]bool) [][]int {
+// computeDegrees counts occupied neighboring cells for each occupied roll in on
+// and returns a grid of those adjacency counts.
+func (d *day04) computeDegrees(on [][]bool) [][]int {
 	deg := make([][]int, d.rows)
 	for r := 0; r < d.rows; r++ {
 		row := make([]int, d.cols)
@@ -71,7 +77,9 @@ func (d *Day04) computeDegrees(on [][]bool) [][]int {
 	return deg
 }
 
-func (d *Day04) countAdjacentRolls(r, c int) int {
+// countAdjacentRolls counts the eight-neighbor paper rolls around grid cell
+// (r,c) and returns that count.
+func (d *day04) countAdjacentRolls(r, c int) int {
 	count := 0
 	for _, dxy := range day04Dirs {
 		nr := r + dxy[0]
@@ -87,7 +95,9 @@ func (d *Day04) countAdjacentRolls(r, c int) int {
 // Part 1
 // -----------------------------------------------------------------------------
 
-func (d *Day04) SolvePart1() string {
+// SolvePart1 counts rolls that are immediately accessible to forklifts because
+// they have fewer than four adjacent rolls.
+func (d *day04) SolvePart1() string {
 	if d.rows == 0 || d.cols == 0 {
 		return "0"
 	}
@@ -112,7 +122,9 @@ func (d *Day04) SolvePart1() string {
 // Part 2
 // -----------------------------------------------------------------------------
 
-func (d *Day04) SolvePart2() string {
+// SolvePart2 repeatedly removes currently accessible rolls and returns the
+// total number removed after accessibility cascades through the grid.
+func (d *day04) SolvePart2() string {
 	if d.rows == 0 || d.cols == 0 {
 		return "0"
 	}

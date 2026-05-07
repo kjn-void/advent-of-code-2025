@@ -1,11 +1,6 @@
 package days
 
-import (
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
-)
+import "testing"
 
 var exampleDay08 = []string{
 	"162,817,812",
@@ -31,11 +26,11 @@ var exampleDay08 = []string{
 }
 
 func TestDay08ExamplePart1(t *testing.T) {
-	d := &Day08{}
+	d := &day08{}
 	d.SetInput(exampleDay08)
 
 	// Example uses 10 shortest connections, not 1000
-	sizes := runConnections(d.points, d.edges, 10)
+	sizes := runConnections(d.junctionBoxes, d.connections, 10)
 
 	if len(sizes) < 3 {
 		t.Fatalf("Expected at least 3 components, got %v", sizes)
@@ -50,12 +45,12 @@ func TestDay08ExamplePart1(t *testing.T) {
 }
 
 func TestDay08ExamplePart2(t *testing.T) {
-	d := &Day08{}
+	d := &day08{}
 	d.SetInput(exampleDay08)
 
-	i, j := runUntilSingleCircuit(d.points, d.edges)
-	xa := d.points[i].x
-	xb := d.points[j].x
+	i, j := runUntilSingleCircuit(d.junctionBoxes, d.connections)
+	xa := d.junctionBoxes[i].x
+	xb := d.junctionBoxes[j].x
 	got := xa * xb
 	var want int64 = 25272
 
@@ -64,60 +59,6 @@ func TestDay08ExamplePart2(t *testing.T) {
 	}
 }
 
-// ------------------------
-// Benchmarks
-// ------------------------
-
-func loadRealInputDay08(b *testing.B) []string {
-	path := filepath.Join("..", "input", "day08.txt")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		b.Fatalf("Missing input file: %v", err)
-	}
-	return strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-}
-
-// 1. Benchmark SetInput() — parsing into vec3 only
-func BenchmarkDay08_SetInput(b *testing.B) {
-	for b.Loop() {
-		lines := loadRealInputDay08(b)
-		s := &Day08{}
-		s.SetInput(lines)
-	}
-}
-
-// 2. Benchmark SolvePart1 only
-func BenchmarkDay08_SolvePart1(b *testing.B) {
-	lines := loadRealInputDay08(b)
-
-	s := &Day08{}
-	s.SetInput(lines)
-
-	for b.Loop() {
-		_ = s.SolvePart1()
-	}
-}
-
-// 3. Benchmark SolvePart2 only
-func BenchmarkDay08_SolvePart2(b *testing.B) {
-	lines := loadRealInputDay08(b)
-
-	s := &Day08{}
-	s.SetInput(lines)
-
-	for b.Loop() {
-		_ = s.SolvePart2()
-	}
-}
-
-// 4. Benchmark full pipeline
-func BenchmarkDay08_FullPipeline(b *testing.B) {
-	for b.Loop() {
-		lines := loadRealInputDay08(b)
-		s := &Day08{}
-		s.SetInput(lines)
-		_ = s.SolvePart1()
-		_ = s.SolvePart2()
-	}
+func BenchmarkDay08(b *testing.B) {
+	benchmarkDay(b, 8, func() Solution { return &day08{} })
 }

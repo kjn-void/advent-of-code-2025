@@ -5,16 +5,22 @@ import (
 	"strings"
 )
 
-type Day02 struct {
-	ranges [][2]int64 // list of [Low, High] ranges, inclusive
+type day02 struct {
+	productIDRanges []idRange
+}
+
+type idRange struct {
+	first, last int64
 }
 
 func init() {
-	Register(2, func() Solution { return &Day02{} })
+	Register(2, func() Solution { return &day02{} })
 }
 
-func (d *Day02) SetInput(lines []string) {
-	d.ranges = d.ranges[:0]
+// SetInput parses comma-separated inclusive product ID ranges into named range
+// structs used by both invalid-ID summations.
+func (d *day02) SetInput(lines []string) {
+	d.productIDRanges = d.productIDRanges[:0]
 
 	if len(lines) == 0 {
 		return
@@ -30,10 +36,12 @@ func (d *Day02) SetInput(lines []string) {
 		start, _ := strconv.ParseInt(b[0], 10, 64)
 		end, _ := strconv.ParseInt(b[1], 10, 64)
 
-		d.ranges = append(d.ranges, [2]int64{start, end})
+		d.productIDRanges = append(d.productIDRanges, idRange{first: start, last: end})
 	}
 }
 
+// pow10Table builds powers of ten used to construct repeated numeric patterns
+// without repeatedly calling slower math/string helpers.
 func pow10Table() []int64 {
 	t := make([]int64, 20)
 	x := int64(1)
@@ -46,7 +54,8 @@ func pow10Table() []int64 {
 
 var p10 = pow10Table()
 
-// smallest repeating block size of numeric string s
+// smallestBlock returns the length of the smallest digit block that can be
+// repeated to form s; it returns len(s) when s has no internal repetition.
 func smallestBlock(s string) int {
 	n := len(s)
 	for k := 1; k <= n/2; k++ {
@@ -70,12 +79,13 @@ func smallestBlock(s string) int {
 
 // ----- Part 1 -----
 
-func (d *Day02) SolvePart1() string {
+// SolvePart1 sums all product IDs in the configured ranges whose decimal form
+// is exactly two copies of the same digit sequence.
+func (d *day02) SolvePart1() string {
 	sum := int64(0)
 
-	for _, r := range d.ranges {
-		L, R := r[0], r[1]
-		maxDigits := len(strconv.FormatInt(R, 10))
+	for _, productIDs := range d.productIDRanges {
+		maxDigits := len(strconv.FormatInt(productIDs.last, 10))
 
 		for k := 1; 2*k <= maxDigits; k++ {
 			base := p10[k]
@@ -84,8 +94,8 @@ func (d *Day02) SolvePart1() string {
 			dLo := p10[k-1]
 			dHi := base - 1
 
-			candMin := (L + repFactor - 1) / repFactor
-			candMax := R / repFactor
+			candMin := (productIDs.first + repFactor - 1) / repFactor
+			candMax := productIDs.last / repFactor
 
 			if candMin < dLo {
 				candMin = dLo
@@ -108,12 +118,13 @@ func (d *Day02) SolvePart1() string {
 
 // ----- Part 2 -----
 
-func (d *Day02) SolvePart2() string {
+// SolvePart2 sums all product IDs in the configured ranges whose decimal form
+// is two or more copies of a primitive digit sequence.
+func (d *day02) SolvePart2() string {
 	total := int64(0)
 
-	for _, r := range d.ranges {
-		L, R := r[0], r[1]
-		maxDigits := len(strconv.FormatInt(R, 10))
+	for _, productIDs := range d.productIDRanges {
+		maxDigits := len(strconv.FormatInt(productIDs.last, 10))
 
 		for totalDigits := 2; totalDigits <= maxDigits; totalDigits++ {
 			tenLen := p10[totalDigits]
@@ -131,8 +142,8 @@ func (d *Day02) SolvePart2() string {
 				dLo := p10[k-1]
 				dHi := baseK - 1
 
-				candMin := (L + repFactor - 1) / repFactor
-				candMax := R / repFactor
+				candMin := (productIDs.first + repFactor - 1) / repFactor
+				candMax := productIDs.last / repFactor
 
 				if candMin < dLo {
 					candMin = dLo

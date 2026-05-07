@@ -1,0 +1,36 @@
+1:
+  title: "Secret Entrance"
+  description: "Follow safe dial rotation instructions and count how often the dial points at zero."
+2:
+  title: "Gift Shop"
+  description: "Find invalid product IDs within ranges by detecting repeated digit patterns and summing those IDs."
+3:
+  title: "Lobby"
+  description: "Choose ordered batteries from each bank to produce the largest possible joltage and total the results."
+4:
+  title: "Printing Department"
+  description: "Analyze a paper-roll grid to count rolls accessible to forklifts based on neighboring rolls."
+5:
+  title: "Cafeteria"
+  description: "Process fresh ingredient ID ranges and available IDs to determine which ingredients are fresh."
+6:
+  title: "Trash Compactor"
+  description: "Parse horizontally arranged cephalopod math problems and total the evaluated results."
+7:
+  title: "Laboratories"
+  description: "Simulate tachyon beams through a splitter manifold to count beam splits and resulting paths."
+8:
+  title: "Playground"
+  description: "Connect nearby 3D junction boxes into circuits and measure the largest resulting components."
+9:
+  title: "Movie Theater"
+  description: "Use red tile coordinates to find the largest rectangle formed by opposite red-tile corners."
+10:
+  title: "Factory"
+  description: "Determine the fewest button presses needed to configure machine indicator lights and joltages."
+11:
+  title: "Reactor"
+  description: "Count directed data paths through connected devices from a start device to the reactor output."
+12:
+  title: "Christmas Tree Farm"
+  description: "Check whether sets of present shapes can fit into rectangular regions under Christmas trees."

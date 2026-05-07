@@ -1,33 +1,36 @@
 package days
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 )
 
-type Day08 struct {
-	points []vec3
-	edges  []edge // all pairwise edges, sorted by distance ascending
+type day08 struct {
+	junctionBoxes []vec3
+	connections   []connection // all pairwise connections, sorted by distance ascending
 }
 
 type vec3 struct {
 	x, y, z int64
 }
 
-type edge struct {
+type connection struct {
 	dist2 int64
 	i, j  int
 }
 
 func init() {
-	Register(8, func() Solution { return &Day08{} })
+	Register(8, func() Solution { return &day08{} })
 }
 
 // -----------------------------------------------------------
 // Parsing
 // -----------------------------------------------------------
 
+// parseVec3 parses one X,Y,Z junction-box coordinate line and returns the 3D
+// point used by the distance calculations.
 func parseVec3(line string) vec3 {
 	parts := strings.Split(line, ",")
 	x, _ := strconv.ParseInt(parts[0], 10, 64)
@@ -36,25 +39,29 @@ func parseVec3(line string) vec3 {
 	return vec3{x, y, z}
 }
 
-func (d *Day08) SetInput(lines []string) {
-	d.points = d.points[:0]
+// SetInput parses junction-box coordinates and precomputes all sorted pairwise
+// connections for the circuit-building algorithms.
+func (d *day08) SetInput(lines []string) {
+	d.junctionBoxes = d.junctionBoxes[:0]
 
 	for _, ln := range lines {
 		ln = strings.TrimSpace(ln)
 		if ln == "" {
 			continue
 		}
-		d.points = append(d.points, parseVec3(ln))
+		d.junctionBoxes = append(d.junctionBoxes, parseVec3(ln))
 	}
 
-	// Build and sort all pairwise edges once; reuse in both parts.
-	d.edges = buildSortedEdges(d.points)
+	// Build and sort all pairwise connections once; reuse in both parts.
+	d.connections = buildSortedConnections(d.junctionBoxes)
 }
 
 // -----------------------------------------------------------
 // Distance & Edge Preparation
 // -----------------------------------------------------------
 
+// squaredDist returns the squared Euclidean distance between two junction boxes,
+// avoiding square roots because only relative ordering is needed.
 func squaredDist(a, b vec3) int64 {
 	dx := a.x - b.x
 	dy := a.y - b.y
@@ -62,20 +69,21 @@ func squaredDist(a, b vec3) int64 {
 	return dx*dx + dy*dy + dz*dz
 }
 
-// Generate all edges sorted by ascending squared distance.
-func buildSortedEdges(points []vec3) []edge {
+// buildSortedConnections generates every pairwise connection among points,
+// sorts them by ascending squared distance, and returns the sorted slice.
+func buildSortedConnections(points []vec3) []connection {
 	n := len(points)
 	if n < 2 {
 		return nil
 	}
 
-	edges := make([]edge, n*(n-1)/2)
+	connections := make([]connection, n*(n-1)/2)
 	idx := 0
 	for i := 0; i < n-1; i++ {
 		pi := points[i]
 		for j := i + 1; j < n; j++ {
 			pj := points[j]
-			edges[idx] = edge{
+			connections[idx] = connection{
 				dist2: squaredDist(pi, pj),
 				i:     i,
 				j:     j,
@@ -84,12 +92,14 @@ func buildSortedEdges(points []vec3) []edge {
 		}
 	}
 
-	radixSortEdges(edges)
-	return edges
+	radixSortConnections(connections)
+	return connections
 }
 
-func radixSortEdges(edges []edge) {
-	if len(edges) < 2 {
+// radixSortConnections sorts connections in place by their non-negative squared
+// distances and returns nothing.
+func radixSortConnections(connections []connection) {
+	if len(connections) < 2 {
 		return
 	}
 
@@ -99,9 +109,9 @@ func radixSortEdges(edges []edge) {
 		mask      = buckets - 1
 	)
 
-	tmp := make([]edge, len(edges))
+	tmp := make([]connection, len(connections))
 	counts := make([]int, buckets)
-	src := edges
+	src := connections
 	dst := tmp
 
 	for shift := uint(0); shift < 64; shift += radixBits {
@@ -137,6 +147,8 @@ type dsu struct {
 	size   []int
 }
 
+// newDSU creates a union-find structure with n singleton circuits and returns it
+// ready for component-size tracking.
 func newDSU(n int) *dsu {
 	p := make([]int, n)
 	s := make([]int, n)
@@ -147,6 +159,8 @@ func newDSU(n int) *dsu {
 	return &dsu{p, s}
 }
 
+// find returns the representative circuit for x, compressing the path for
+// faster future lookups.
 func (d *dsu) find(x int) int {
 	for d.parent[x] != x {
 		d.parent[x] = d.parent[d.parent[x]]
@@ -175,21 +189,21 @@ func (d *dsu) union(a, b int) bool {
 // -----------------------------------------------------------
 
 // runConnections performs exactly k connection attempts using the
-// shortest k edges in the sorted edge list.
+// shortest k connections in the sorted list.
 // Returns component sizes sorted descending.
-func runConnections(points []vec3, edges []edge, k int) []int {
+func runConnections(points []vec3, connections []connection, k int) []int {
 	n := len(points)
 	if n == 0 {
 		return nil
 	}
-	if k > len(edges) {
-		k = len(edges)
+	if k > len(connections) {
+		k = len(connections)
 	}
 
 	uf := newDSU(n)
 
 	for idx := 0; idx < k; idx++ {
-		e := edges[idx]
+		e := connections[idx]
 		// If already in same component, nothing happens (but still counts as an attempt)
 		uf.union(e.i, e.j)
 	}
@@ -204,15 +218,14 @@ func runConnections(points []vec3, edges []edge, k int) []int {
 		}
 	}
 
-	// Sort descending
-	sort.Slice(sizes, func(a, b int) bool { return sizes[a] > sizes[b] })
+	slices.SortFunc(sizes, func(a, b int) int { return cmp.Compare(b, a) })
 	return sizes
 }
 
-// runUntilSingleCircuit keeps connecting shortest edges until all
-// points are in a single connected component. It returns the indices
+// runUntilSingleCircuit keeps connecting shortest pairs until all
+// junction boxes are in a single connected component. It returns the indices
 // of the last pair that actually merged two different components.
-func runUntilSingleCircuit(points []vec3, edges []edge) (int, int) {
+func runUntilSingleCircuit(points []vec3, connections []connection) (int, int) {
 	n := len(points)
 	if n <= 1 {
 		return 0, 0
@@ -222,7 +235,7 @@ func runUntilSingleCircuit(points []vec3, edges []edge) (int, int) {
 	components := n
 	lastI, lastJ := 0, 0
 
-	for _, e := range edges {
+	for _, e := range connections {
 		if uf.union(e.i, e.j) {
 			components--
 			lastI, lastJ = e.i, e.j
@@ -239,8 +252,10 @@ func runUntilSingleCircuit(points []vec3, edges []edge) (int, int) {
 // Solve Part 1 & Part 2
 // -----------------------------------------------------------
 
-func (d *Day08) SolvePart1() string {
-	sizes := runConnections(d.points, d.edges, 1000)
+// SolvePart1 makes the first 1000 shortest connection attempts and returns the
+// product of the three largest resulting circuit sizes.
+func (d *day08) SolvePart1() string {
+	sizes := runConnections(d.junctionBoxes, d.connections, 1000)
 	if len(sizes) < 3 {
 		return "0"
 	}
@@ -248,12 +263,14 @@ func (d *Day08) SolvePart1() string {
 	return strconv.Itoa(result)
 }
 
-func (d *Day08) SolvePart2() string {
-	if len(d.points) < 2 {
+// SolvePart2 connects circuits until all junction boxes share one circuit and
+// returns the product of the x-coordinates from the final merging pair.
+func (d *day08) SolvePart2() string {
+	if len(d.junctionBoxes) < 2 {
 		return "0"
 	}
-	i, j := runUntilSingleCircuit(d.points, d.edges)
-	xa := d.points[i].x
-	xb := d.points[j].x
+	i, j := runUntilSingleCircuit(d.junctionBoxes, d.connections)
+	xa := d.junctionBoxes[i].x
+	xb := d.junctionBoxes[j].x
 	return strconv.FormatInt(xa*xb, 10)
 }

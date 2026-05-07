@@ -1,23 +1,30 @@
 package days
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 )
 
-type Day05 struct {
-	ranges [][2]int64
-	ids    []int64
+type day05 struct {
+	freshRanges   []freshRange
+	ingredientIDs []int64
+}
+
+type freshRange struct {
+	start, end int64
 }
 
 func init() {
-	Register(5, func() Solution { return &Day05{} })
+	Register(5, func() Solution { return &day05{} })
 }
 
-func (d *Day05) SetInput(lines []string) {
-	d.ranges = d.ranges[:0]
-	d.ids = d.ids[:0]
+// SetInput parses fresh ingredient ranges and available ingredient IDs, then
+// merges overlapping fresh ranges for efficient membership checks.
+func (d *day05) SetInput(lines []string) {
+	d.freshRanges = d.freshRanges[:0]
+	d.ingredientIDs = d.ingredientIDs[:0]
 
 	// Split into two blocks: ranges, blank line, then available IDs
 	section := 0
@@ -33,40 +40,46 @@ func (d *Day05) SetInput(lines []string) {
 			parts := strings.Split(s, "-")
 			start, _ := strconv.ParseInt(parts[0], 10, 64)
 			end, _ := strconv.ParseInt(parts[1], 10, 64)
-			d.ranges = append(d.ranges, [2]int64{start, end})
+			d.freshRanges = append(d.freshRanges, freshRange{start: start, end: end})
 		} else {
 			// available ingredient IDs (used only in part 1)
 			id, _ := strconv.ParseInt(s, 10, 64)
-			d.ids = append(d.ids, id)
+			d.ingredientIDs = append(d.ingredientIDs, id)
 		}
 	}
 
-	// Merge overlapping ranges for efficient lookup
-	sort.Slice(d.ranges, func(i, j int) bool {
-		return d.ranges[i][0] < d.ranges[j][0]
+	if len(d.freshRanges) == 0 {
+		return
+	}
+
+	// Merge overlapping ranges for efficient lookup.
+	slices.SortFunc(d.freshRanges, func(a, b freshRange) int {
+		return cmp.Compare(a.start, b.start)
 	})
 
-	merged := d.ranges[:0]
-	curStart, curEnd := d.ranges[0][0], d.ranges[0][1]
+	merged := d.freshRanges[:0]
+	curStart, curEnd := d.freshRanges[0].start, d.freshRanges[0].end
 
-	for i := 1; i < len(d.ranges); i++ {
-		s, e := d.ranges[i][0], d.ranges[i][1]
+	for i := 1; i < len(d.freshRanges); i++ {
+		s, e := d.freshRanges[i].start, d.freshRanges[i].end
 		if s <= curEnd { // overlapping
 			if e > curEnd {
 				curEnd = e
 			}
 		} else {
-			merged = append(merged, [2]int64{curStart, curEnd})
+			merged = append(merged, freshRange{start: curStart, end: curEnd})
 			curStart, curEnd = s, e
 		}
 	}
-	merged = append(merged, [2]int64{curStart, curEnd})
-	d.ranges = merged
+	merged = append(merged, freshRange{start: curStart, end: curEnd})
+	d.freshRanges = merged
 }
 
-func (d *Day05) SolvePart1() string {
+// SolvePart1 counts available ingredient IDs that fall inside any merged fresh
+// range and returns that count.
+func (d *day05) SolvePart1() string {
 	count := 0
-	for _, id := range d.ids {
+	for _, id := range d.ingredientIDs {
 		if d.isFresh(id) {
 			count++
 		}
@@ -74,15 +87,17 @@ func (d *Day05) SolvePart1() string {
 	return strconv.Itoa(count)
 }
 
-func (d *Day05) isFresh(id int64) bool {
+// isFresh checks whether id is contained in the sorted, merged fresh ranges and
+// returns true when the ingredient is fresh.
+func (d *day05) isFresh(id int64) bool {
 	// binary search in merged ranges
-	lo, hi := 0, len(d.ranges)-1
+	lo, hi := 0, len(d.freshRanges)-1
 	for lo <= hi {
 		mid := (lo + hi) / 2
-		r := d.ranges[mid]
-		if id < r[0] {
+		r := d.freshRanges[mid]
+		if id < r.start {
 			hi = mid - 1
-		} else if id > r[1] {
+		} else if id > r.end {
 			lo = mid + 1
 		} else {
 			return true
@@ -91,11 +106,12 @@ func (d *Day05) isFresh(id int64) bool {
 	return false
 }
 
-func (d *Day05) SolvePart2() string {
+// SolvePart2 returns the total number of distinct ingredient IDs covered by the
+// merged fresh ranges.
+func (d *day05) SolvePart2() string {
 	var total int64 = 0
-	for _, r := range d.ranges {
-		// r[0]..r[1] inclusive
-		total += (r[1] - r[0] + 1)
+	for _, r := range d.freshRanges {
+		total += r.end - r.start + 1
 	}
 
 	return strconv.FormatInt(total, 10)
